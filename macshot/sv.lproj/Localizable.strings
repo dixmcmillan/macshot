@@ -852,3 +852,43 @@
 "Zoom out timeline" = "Zooma ut tidslinjen";
 "macOS" = "macOS";
 "Sway" = "Svaj";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Kommentera";
+"Annotate Frame" = "Kommentera bild";
+"Annotation" = "Kommentar";
+"Edit Drawing…" = "Redigera teckning…";
+"Hold video while shown" = "Pausa videon medan den visas";
+"Discard Drawing?" = "Kasta teckningen?";
+"Your drawing will be lost if you close without adding it." = "Din teckning går förlorad om du stänger utan att lägga till den.";
+"Couldn't capture this frame" = "Det gick inte att fånga den här bilden";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Ingång";
+"Exit" = "Utgång";
+"Animation" = "Animering";
+"Timing" = "Timing";
+"Pop" = "Poppa in";
+"Draw In" = "Rita in";
+"Draw Out" = "Rita ut";
+"Slide Up" = "Glid upp";
+"Slide" = "Glid";
+"Wipe" = "Svep";
+"Stagger" = "Förskjutning";
+"Stagger only applies when the drawing has more than one item." = "Förskjutning gäller bara när ritningen har fler än ett objekt.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Rita in ritar upp linjer, pilar, frihandsstreck och formkonturer när de dyker upp. Andra objekt dyker bara upp direkt (poppar in).";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Överlägg…";
+"Overlay" = "Överlägg";
+"This project doesn't have a folder to import files into." = "Det här projektet har ingen mapp att importera filer till.";
+"Importing overlay..." = "Importerar överlägg...";
+"That file couldn't be read as a video or image." = "Filen kunde inte läsas som video eller bild.";
+"Couldn't copy that file into the project." = "Filen kunde inte kopieras till projektet.";
+"This video has no transparency — it will cover the picture" = "Den här videon har ingen transparens — den kommer att täcka bilden";
+"Replace Media…" = "Ersätt media…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Överläggsfilen saknas. Ersätt den för att återställa överlägget.";
+"Media" = "Media";
+"Opacity" = "Opacitet";
+"Reset Size" = "Återställ storlek";
+"Opaque" = "Opak";

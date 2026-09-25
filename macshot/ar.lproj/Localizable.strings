@@ -854,3 +854,43 @@
 "Zoom out timeline" = "تصغير المخطط الزمني";
 "macOS" = "macOS";
 "Sway" = "تمايل";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "تعليق توضيحي";
+"Annotate Frame" = "تعليق على الإطار";
+"Annotation" = "تعليق توضيحي";
+"Edit Drawing…" = "تحرير الرسم…";
+"Hold video while shown" = "إيقاف الفيديو أثناء العرض";
+"Discard Drawing?" = "تجاهل الرسم؟";
+"Your drawing will be lost if you close without adding it." = "سيتم فقد رسمك إذا أغلقت دون إضافته.";
+"Couldn't capture this frame" = "تعذّر التقاط هذا الإطار";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "دخول";
+"Exit" = "خروج";
+"Animation" = "التحريك";
+"Timing" = "التوقيت";
+"Pop" = "ظهور";
+"Draw In" = "رسم الدخول";
+"Draw Out" = "رسم الخروج";
+"Slide Up" = "انزلاق لأعلى";
+"Slide" = "انزلاق";
+"Wipe" = "مسح";
+"Stagger" = "تتابع";
+"Stagger only applies when the drawing has more than one item." = "ينطبق التتابع فقط عندما يحتوي الرسم على أكثر من عنصر واحد.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "يعمل رسم الدخول على تتبع الخطوط والأسهم والخطوط الحرة وحدود الأشكال عند دخولها، بينما تظهر العناصر الأخرى فجأة.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "طبقة…";
+"Overlay" = "طبقة";
+"This project doesn't have a folder to import files into." = "لا يحتوي هذا المشروع على مجلد لاستيراد الملفات إليه.";
+"Importing overlay..." = "جارٍ استيراد الطبقة...";
+"That file couldn't be read as a video or image." = "تعذّرت قراءة هذا الملف كفيديو أو صورة.";
+"Couldn't copy that file into the project." = "تعذّر نسخ هذا الملف إلى المشروع.";
+"This video has no transparency — it will cover the picture" = "لا يحتوي هذا الفيديو على شفافية — سيغطي الصورة";
+"Replace Media…" = "استبدال الوسائط…";
+"The overlay file is missing. Replace it to bring the overlay back." = "ملف الطبقة مفقود. استبدله لإعادة الطبقة.";
+"Media" = "الوسائط";
+"Opacity" = "العتامة";
+"Reset Size" = "إعادة ضبط الحجم";
+"Opaque" = "معتم";

@@ -852,3 +852,43 @@
 "Zoom out timeline" = "Loitonna aikajanaa";
 "macOS" = "macOS";
 "Sway" = "Heilunta";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Merkitse";
+"Annotate Frame" = "Merkitse kuva";
+"Annotation" = "Merkintä";
+"Edit Drawing…" = "Muokkaa piirrosta…";
+"Hold video while shown" = "Pysäytä video sen näkyessä";
+"Discard Drawing?" = "Hylätäänkö piirros?";
+"Your drawing will be lost if you close without adding it." = "Piirroksesi katoaa, jos suljet lisäämättä sitä.";
+"Couldn't capture this frame" = "Tätä kuvaa ei voitu kaapata";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Sisääntulo";
+"Exit" = "Poistuminen";
+"Animation" = "Animaatio";
+"Timing" = "Ajoitus";
+"Pop" = "Ponnahdus";
+"Draw In" = "Piirto sisään";
+"Draw Out" = "Piirto ulos";
+"Slide Up" = "Liuku ylös";
+"Slide" = "Liuku";
+"Wipe" = "Pyyhkäisy";
+"Stagger" = "Porrastus";
+"Stagger only applies when the drawing has more than one item." = "Porrastus vaikuttaa vain, jos piirroksessa on useampi kuin yksi kohde.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Piirto sisään jäljittää viivat, nuolet, vapaan käden vedot ja muotojen ääriviivat niiden saapuessa; muut kohteet vain ponnahtavat esiin.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Päällys…";
+"Overlay" = "Päällys";
+"This project doesn't have a folder to import files into." = "Tässä projektissa ei ole kansiota, johon tiedostoja voi tuoda.";
+"Importing overlay..." = "Tuodaan päällystä...";
+"That file couldn't be read as a video or image." = "Tiedostoa ei voitu lukea videona tai kuvana.";
+"Couldn't copy that file into the project." = "Tiedostoa ei voitu kopioida projektiin.";
+"This video has no transparency — it will cover the picture" = "Tässä videossa ei ole läpinäkyvyyttä — se peittää kuvan";
+"Replace Media…" = "Korvaa media…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Päällyksen tiedosto puuttuu. Korvaa se, jotta päällys palautuu.";
+"Media" = "Media";
+"Opacity" = "Peittävyys";
+"Reset Size" = "Palauta koko";
+"Opaque" = "Peittävä";

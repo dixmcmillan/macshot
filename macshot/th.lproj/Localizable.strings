@@ -852,3 +852,43 @@
 "Zoom out timeline" = "ซูมออกไทม์ไลน์";
 "macOS" = "macOS";
 "Sway" = "การเอียง";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "ใส่คำอธิบายประกอบ";
+"Annotate Frame" = "ใส่คำอธิบายประกอบเฟรม";
+"Annotation" = "คำอธิบายประกอบ";
+"Edit Drawing…" = "แก้ไขภาพวาด…";
+"Hold video while shown" = "หยุดวิดีโอชั่วคราวขณะแสดง";
+"Discard Drawing?" = "ยกเลิกภาพวาดหรือไม่";
+"Your drawing will be lost if you close without adding it." = "ภาพวาดของคุณจะหายไปหากปิดโดยไม่เพิ่ม";
+"Couldn't capture this frame" = "ไม่สามารถจับภาพเฟรมนี้ได้";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "เข้า";
+"Exit" = "ออก";
+"Animation" = "แอนิเมชัน";
+"Timing" = "จังหวะเวลา";
+"Pop" = "ปรากฏทันที";
+"Draw In" = "วาดเข้า";
+"Draw Out" = "วาดออก";
+"Slide Up" = "เลื่อนขึ้น";
+"Slide" = "เลื่อน";
+"Wipe" = "กวาด";
+"Stagger" = "หน่วงเวลาต่อเนื่อง";
+"Stagger only applies when the drawing has more than one item." = "การหน่วงเวลาต่อเนื่องจะใช้ได้ก็ต่อเมื่อภาพวาดมีมากกว่าหนึ่งรายการ";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "วาดเข้า จะลากเส้น ลูกศร เส้นวาดมืออิสระ และเส้นขอบรูปทรงขณะที่ปรากฏขึ้น ส่วนรายการอื่นจะปรากฏขึ้นทันที";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "โอเวอร์เลย์…";
+"Overlay" = "โอเวอร์เลย์";
+"This project doesn't have a folder to import files into." = "โปรเจ็กต์นี้ไม่มีโฟลเดอร์สำหรับนำเข้าไฟล์";
+"Importing overlay..." = "กำลังนำเข้าโอเวอร์เลย์...";
+"That file couldn't be read as a video or image." = "ไม่สามารถอ่านไฟล์นั้นเป็นวิดีโอหรือรูปภาพได้";
+"Couldn't copy that file into the project." = "ไม่สามารถคัดลอกไฟล์นั้นลงในโปรเจ็กต์ได้";
+"This video has no transparency — it will cover the picture" = "วิดีโอนี้ไม่มีความโปร่งใส — มันจะบังภาพ";
+"Replace Media…" = "แทนที่มีเดีย…";
+"The overlay file is missing. Replace it to bring the overlay back." = "ไม่พบไฟล์โอเวอร์เลย์ แทนที่ไฟล์เพื่อนำโอเวอร์เลย์กลับมา";
+"Media" = "มีเดีย";
+"Opacity" = "ความทึบ";
+"Reset Size" = "รีเซ็ตขนาด";
+"Opaque" = "ทึบแสง";

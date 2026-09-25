@@ -91,7 +91,14 @@ final class VideoEditorPlayback {
         let cuts = p.cuts.map { "c\($0.startTime.bitPattern)-\($0.endTime.bitPattern)" }
         let speeds = p.speeds.map { "s\($0.startTime.bitPattern)-\($0.endTime.bitPattern)@\($0.speedFactor.bitPattern)" }
         let freezes = p.freezes.map { "f\($0.atTime.bitPattern)@\($0.holdDuration.bitPattern)" }
-        return (cuts + speeds + freezes).joined(separator: "|") + (planner.hasCamera ? "|cam" : "")
+        // Only a video overlay's own composition track matters here — its
+        // start/duration/mediaStart/file decide where and how much media gets
+        // inserted. Rect, opacity and fades only affect the video composition
+        // (rebuilt unconditionally below), never the track structure, so they
+        // must not be in this key or every drag would tear down the player item.
+        let overlays = p.overlays.filter { $0.kind == .video }
+            .map { "o\($0.id)|\($0.fileName)|\($0.startTime.bitPattern)|\($0.duration.bitPattern)|\($0.mediaStart.bitPattern)" }
+        return (cuts + speeds + freezes + overlays).joined(separator: "|") + (planner.hasCamera ? "|cam" : "")
     }
 
     /// Rebuilds the preview. Keeps the current item unless the timeline's
@@ -100,7 +107,7 @@ final class VideoEditorPlayback {
         let project = document.project
         let key = topologyKey()
         let needsComposition = !project.cuts.isEmpty || !project.speeds.isEmpty || !project.freezes.isEmpty
-            || planner.hasCamera
+            || planner.hasCamera || VideoRenderPlanner.hasVideoOverlays(project: project)
         let resumeTime = requestedSourceTime ?? currentSourceTime
         do {
             if needsComposition {

@@ -854,3 +854,43 @@
 "Zoom out timeline" = "הקטן את ציר הזמן";
 "macOS" = "macOS";
 "Sway" = "נטייה";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "הוספת הערה";
+"Annotate Frame" = "הוספת הערה לפריים";
+"Annotation" = "הערה";
+"Edit Drawing…" = "ערוך ציור…";
+"Hold video while shown" = "השהה את הווידאו בזמן הצגתו";
+"Discard Drawing?" = "לבטל את הציור?";
+"Your drawing will be lost if you close without adding it." = "הציור שלך יאבד אם תסגור בלי להוסיף אותו.";
+"Couldn't capture this frame" = "לא ניתן היה ללכוד פריים זה";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "כניסה";
+"Exit" = "יציאה";
+"Animation" = "אנימציה";
+"Timing" = "תזמון";
+"Pop" = "הופעה פתאומית";
+"Draw In" = "שרטוט כניסה";
+"Draw Out" = "שרטוט יציאה";
+"Slide Up" = "החלקה למעלה";
+"Slide" = "החלקה";
+"Wipe" = "ניגוב";
+"Stagger" = "מדורג";
+"Stagger only applies when the drawing has more than one item." = "המדורג חל רק כאשר בציור יש יותר מפריט אחד.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "שרטוט הכניסה עוקב אחר קווים, חצים, קווים חופשיים ומתאר הצורות תוך כדי הופעתם; שאר הפריטים פשוט מופיעים בפתאומיות.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "שכבה…";
+"Overlay" = "שכבה";
+"This project doesn't have a folder to import files into." = "לפרויקט הזה אין תיקייה לייבוא קבצים אליה.";
+"Importing overlay..." = "מייבא שכבה...";
+"That file couldn't be read as a video or image." = "לא ניתן היה לקרוא את הקובץ הזה כווידאו או כתמונה.";
+"Couldn't copy that file into the project." = "לא ניתן היה להעתיק את הקובץ הזה לפרויקט.";
+"This video has no transparency — it will cover the picture" = "לווידאו הזה אין שקיפות — הוא יכסה את התמונה";
+"Replace Media…" = "החלפת מדיה…";
+"The overlay file is missing. Replace it to bring the overlay back." = "קובץ השכבה חסר. יש להחליפו כדי להחזיר את השכבה.";
+"Media" = "מדיה";
+"Opacity" = "אטימות";
+"Reset Size" = "איפוס גודל";
+"Opaque" = "אטום";

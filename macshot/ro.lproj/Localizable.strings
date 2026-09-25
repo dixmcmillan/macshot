@@ -852,3 +852,43 @@
 "Zoom out timeline" = "Micșorează cronologia";
 "macOS" = "macOS";
 "Sway" = "Legănare";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Adnotează";
+"Annotate Frame" = "Adnotează cadrul";
+"Annotation" = "Adnotare";
+"Edit Drawing…" = "Editează desenul…";
+"Hold video while shown" = "Oprește videoclipul cât timp este afișat";
+"Discard Drawing?" = "Renunți la desen?";
+"Your drawing will be lost if you close without adding it." = "Desenul tău se va pierde dacă închizi fără să îl adaugi.";
+"Couldn't capture this frame" = "Acest cadru nu a putut fi capturat";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Intrare";
+"Exit" = "Ieșire";
+"Animation" = "Animație";
+"Timing" = "Temporizare";
+"Pop" = "Apariție instantanee";
+"Draw In" = "Trasare la intrare";
+"Draw Out" = "Trasare la ieșire";
+"Slide Up" = "Alunecare în sus";
+"Slide" = "Alunecare";
+"Wipe" = "Ștergere";
+"Stagger" = "Eșalonare";
+"Stagger only applies when the drawing has more than one item." = "Eșalonarea se aplică doar atunci când desenul are mai mult de un element.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Trasarea la intrare desenează liniile, săgețile, trasările libere și conturul formelor pe măsură ce apar; celelalte elemente apar pur și simplu instantaneu.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Suprapunere…";
+"Overlay" = "Suprapunere";
+"This project doesn't have a folder to import files into." = "Acest proiect nu are un folder în care să importe fișiere.";
+"Importing overlay..." = "Se importă suprapunerea...";
+"That file couldn't be read as a video or image." = "Acest fișier nu a putut fi citit ca videoclip sau imagine.";
+"Couldn't copy that file into the project." = "Acest fișier nu a putut fi copiat în proiect.";
+"This video has no transparency — it will cover the picture" = "Acest videoclip nu are transparență — va acoperi imaginea";
+"Replace Media…" = "Înlocuiește conținutul media…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Fișierul suprapunerii lipsește. Înlocuiește-l pentru a reface suprapunerea.";
+"Media" = "Media";
+"Opacity" = "Opacitate";
+"Reset Size" = "Resetează dimensiunea";
+"Opaque" = "Opac";

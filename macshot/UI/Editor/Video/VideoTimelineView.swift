@@ -8,6 +8,7 @@ protocol VideoTimelineDelegate: AnyObject {
     func timelineDidEndScrub(_ timeline: VideoTimelineView)
     func timeline(_ timeline: VideoTimelineView, add kind: VideoTimelineView.Lane, at time: Double)
     func timelineDidRequestTextEdit(_ timeline: VideoTimelineView, id: UUID)
+    func timelineDidRequestAnnotationEdit(_ timeline: VideoTimelineView, id: UUID)
     func timelineCurrentTime(_ timeline: VideoTimelineView) -> Double
 }
 
@@ -52,6 +53,10 @@ final class VideoTimelineView: NSView {
     private var thumbnailDensity = 0
     private var waveform: [Float] = []
     private var waveformTask: Task<Void, Never>?
+    /// Annotation summaries are decoded `Annotation` lists; cache by segment
+    /// id + the data that produced them so a rebuild (or a drag, which
+    /// rebuilds constantly) doesn't re-decode unchanged segments.
+    private var annotationSummaryCache: [UUID: (data: Data, title: String)] = [:]
 
     private let playheadLayer = CALayer()
     private let playheadKnob = CAShapeLayer()
@@ -215,6 +220,15 @@ final class VideoTimelineView: NSView {
             return Item(selection: .censor(c.id), lane: .overlays, row: 0, start: c.startTime, end: c.endTime,
                         title: label, color: VideoEditorStyle.censor, symbol: "eye.slash")
         }
+        overlays += p.annotations.map { a in
+            Item(selection: .annotation(a.id), lane: .overlays, row: 0, start: a.startTime, end: a.endTime,
+                 title: annotationSummary(for: a), color: VideoEditorStyle.annotation, symbol: "scribble.variable")
+        }
+        overlays += p.overlays.map { o in
+            Item(selection: .overlay(o.id), lane: .overlays, row: 0, start: o.startTime, end: o.startTime + o.duration,
+                 title: o.displayName, color: VideoEditorStyle.overlay,
+                 symbol: o.kind == .video ? "film.stack" : "photo.stack")
+        }
         overlays.sort { $0.start < $1.start }
         var rowEnds: [Double] = []
         for i in overlays.indices {
@@ -235,6 +249,8 @@ final class VideoTimelineView: NSView {
         let heightChanged = rows != overlayRows
         overlayRows = rows
         items = result
+        let liveAnnotationIDs = Set(p.annotations.map(\.id))
+        annotationSummaryCache = annotationSummaryCache.filter { liveAnnotationIDs.contains($0.key) }
         if heightChanged { invalidateIntrinsicContentSize() }
         invalidateIntrinsicContentSize()
         needsDisplay = true
@@ -243,6 +259,17 @@ final class VideoTimelineView: NSView {
 
     /// Fired when lane geometry may have changed (for the gutter).
     var onLayoutChange: (() -> Void)?
+
+    /// `VideoAnnotationSegment.summary` decodes its stored `Annotation` list;
+    /// cache the result so scrubbing/dragging doesn't redecode every frame.
+    private func annotationSummary(for segment: VideoAnnotationSegment) -> String {
+        if let cached = annotationSummaryCache[segment.id], cached.data == segment.annotationData {
+            return cached.title
+        }
+        let title = segment.summary
+        annotationSummaryCache[segment.id] = (segment.annotationData, title)
+        return title
+    }
 
     static func speedLabel(_ factor: Double) -> String {
         factor >= 1 ? String(format: factor.rounded() == factor ? "%.0f×" : "%.1f×", factor)
@@ -656,6 +683,7 @@ final class VideoTimelineView: NSView {
         if event.clickCount == 2 {
             if let (index, _) = hitItem(at: p) {
                 if case .text(let id) = items[index].selection { delegate?.timelineDidRequestTextEdit(self, id: id) }
+                if case .annotation(let id) = items[index].selection { delegate?.timelineDidRequestAnnotationEdit(self, id: id) }
                 return
             }
             if let lane = lane(at: p), lane != .clip, lane != .captions {
@@ -725,9 +753,9 @@ final class VideoTimelineView: NSView {
                 start = min(max(0, start), document.duration - length)
                 end = start + length
             case .start:
-                start = min(snap(t, excluding: selection), end - 0.2)
+                start = min(snap(t, excluding: selection), end - Self.minDragLength(for: selection))
             case .end:
-                end = max(snap(t, excluding: selection), start + 0.2)
+                end = max(snap(t, excluding: selection), start + Self.minDragLength(for: selection))
             }
             apply(selection: selection, start: max(0, start), end: min(document.duration, end), edge: edge)
         }
@@ -744,6 +772,14 @@ final class VideoTimelineView: NSView {
     }
 
     private func clampTime(_ t: Double) -> Double { min(max(0, t), document.duration) }
+
+    /// Shortest edge-drag length for a selection type. Most lanes share the
+    /// same feel; annotations use their own model minimum.
+    private static func minDragLength(for selection: VideoSelection) -> Double {
+        if case .annotation = selection { return VideoAnnotationSegment.minDuration }
+        if case .overlay = selection { return VideoOverlaySegment.minDuration }
+        return 0.2
+    }
 
     /// Snaps to the playhead, trim edges and other item edges within 7 pt.
     private func snap(_ t: Double, excluding: VideoSelection?) -> Double {
@@ -792,9 +828,37 @@ final class VideoTimelineView: NSView {
             case .text(let id):
                 guard let seg = project.texts.first(where: { $0.id == id }) else { return }
                 seg.startTime = start; seg.endTime = end
+            case .annotation(let id):
+                guard let seg = project.annotations.first(where: { $0.id == id }) else { return }
+                // `holdTime` moves with `startTime`; keep an attached "hold
+                // video while shown" freeze with it, in the same undo step.
+                let oldHold = seg.holdTime
+                seg.startTime = start; seg.endTime = end
+                document.relocateAnnotationFreeze(in: project, from: oldHold, to: seg.holdTime)
             case .caption(let id):
                 guard let i = project.captions.firstIndex(where: { $0.id == id }) else { return }
                 project.captions[i].startTime = start; project.captions[i].endTime = end
+            case .overlay(let id):
+                guard let seg = project.overlays.first(where: { $0.id == id }) else { return }
+                switch edge {
+                case .body:
+                    seg.startTime = start
+                case .end:
+                    seg.duration = VideoOverlayEditing.resizedDuration(proposedEnd: end, startTime: seg.startTime,
+                                                                       minDuration: VideoOverlaySegment.minDuration,
+                                                                       maxDuration: seg.maxDuration)
+                case .start:
+                    // The out point (`mediaStart + duration`) stays pinned;
+                    // recomputing from the segment's own current fields each
+                    // call keeps repeated drag updates and clamp boundaries
+                    // consistent without needing a separate drag-begin snapshot.
+                    let trim = VideoOverlayEditing.trimHead(kind: seg.kind, proposedStart: start, originalStart: seg.startTime,
+                                                            originalMediaStart: seg.mediaStart, originalDuration: seg.duration,
+                                                            minDuration: VideoOverlaySegment.minDuration)
+                    seg.startTime = trim.startTime
+                    seg.mediaStart = trim.mediaStart
+                    seg.duration = trim.duration
+                }
             }
         }
     }

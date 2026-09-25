@@ -852,3 +852,43 @@
 "Zoom out timeline" = "タイムラインを縮小";
 "macOS" = "macOS";
 "Sway" = "揺れ";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "注釈";
+"Annotate Frame" = "フレームに注釈を追加";
+"Annotation" = "注釈";
+"Edit Drawing…" = "描画を編集…";
+"Hold video while shown" = "表示中は動画を停止する";
+"Discard Drawing?" = "描画を破棄しますか？";
+"Your drawing will be lost if you close without adding it." = "追加せずに閉じると描画は失われます。";
+"Couldn't capture this frame" = "このフレームをキャプチャできませんでした";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "登場";
+"Exit" = "退場";
+"Animation" = "アニメーション";
+"Timing" = "タイミング";
+"Pop" = "ポップ";
+"Draw In" = "ドローイン";
+"Draw Out" = "ドローアウト";
+"Slide Up" = "スライドアップ";
+"Slide" = "スライド";
+"Wipe" = "ワイプ";
+"Stagger" = "ずらし";
+"Stagger only applies when the drawing has more than one item." = "ずらしは、描画に複数の項目がある場合にのみ適用されます。";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "ドローインは、登場時に線、矢印、フリーハンドの線、図形の輪郭をなぞって表示します。それ以外の項目はポップして表示されます。";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "オーバーレイ…";
+"Overlay" = "オーバーレイ";
+"This project doesn't have a folder to import files into." = "このプロジェクトにはファイルをインポートするフォルダがありません。";
+"Importing overlay..." = "オーバーレイをインポート中...";
+"That file couldn't be read as a video or image." = "そのファイルは動画または画像として読み込めませんでした。";
+"Couldn't copy that file into the project." = "そのファイルをプロジェクトにコピーできませんでした。";
+"This video has no transparency — it will cover the picture" = "この動画には透明度がありません — 映像を覆ってしまいます";
+"Replace Media…" = "メディアを置き換え…";
+"The overlay file is missing. Replace it to bring the overlay back." = "オーバーレイのファイルが見つかりません。置き換えるとオーバーレイが復元されます。";
+"Media" = "メディア";
+"Opacity" = "不透明度";
+"Reset Size" = "サイズをリセット";
+"Opaque" = "不透明";

@@ -852,3 +852,43 @@
 "Zoom out timeline" = "Smanji vremensku crtu";
 "macOS" = "macOS";
 "Sway" = "Njihanje";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Označi";
+"Annotate Frame" = "Označi kadar";
+"Annotation" = "Oznaka";
+"Edit Drawing…" = "Uredi crtež…";
+"Hold video while shown" = "Zaustavi video dok je prikazan";
+"Discard Drawing?" = "Odbaciti crtež?";
+"Your drawing will be lost if you close without adding it." = "Vaš će crtež biti izgubljen ako zatvorite bez dodavanja.";
+"Couldn't capture this frame" = "Nije moguće snimiti ovaj kadar";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Ulaz";
+"Exit" = "Izlaz";
+"Animation" = "Animacija";
+"Timing" = "Tempiranje";
+"Pop" = "Iskakanje";
+"Draw In" = "Ucrtavanje";
+"Draw Out" = "Iscrtavanje";
+"Slide Up" = "Klizanje prema gore";
+"Slide" = "Klizanje";
+"Wipe" = "Brisanje";
+"Stagger" = "Postupno kašnjenje";
+"Stagger only applies when the drawing has more than one item." = "Postupno kašnjenje primjenjuje se samo kada crtež ima više od jedne stavke.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Ucrtavanje iscrtava linije, strelice, slobodne poteze i obrise oblika dok se pojavljuju; ostale stavke jednostavno iskoče.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Sloj…";
+"Overlay" = "Sloj";
+"This project doesn't have a folder to import files into." = "Ovaj projekt nema mapu za uvoz datoteka.";
+"Importing overlay..." = "Uvoz sloja...";
+"That file couldn't be read as a video or image." = "Tu datoteku nije bilo moguće pročitati kao video ili sliku.";
+"Couldn't copy that file into the project." = "Tu datoteku nije bilo moguće kopirati u projekt.";
+"This video has no transparency — it will cover the picture" = "Ovaj video nema prozirnost — prekrit će sliku";
+"Replace Media…" = "Zamijeni medij…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Datoteka sloja nedostaje. Zamijenite je da biste vratili sloj.";
+"Media" = "Medij";
+"Opacity" = "Neprozirnost";
+"Reset Size" = "Vrati veličinu";
+"Opaque" = "Neprozirno";

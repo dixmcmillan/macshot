@@ -854,3 +854,43 @@
 "Zoom out timeline" = "缩小时间线";
 "macOS" = "macOS";
 "Sway" = "摆动";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "标注";
+"Annotate Frame" = "为画面添加标注";
+"Annotation" = "标注";
+"Edit Drawing…" = "编辑绘图…";
+"Hold video while shown" = "显示期间暂停视频";
+"Discard Drawing?" = "丢弃绘图？";
+"Your drawing will be lost if you close without adding it." = "如果不添加就关闭，绘图将会丢失。";
+"Couldn't capture this frame" = "无法捕获此画面";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "进入";
+"Exit" = "退出";
+"Animation" = "动画";
+"Timing" = "计时";
+"Pop" = "弹出";
+"Draw In" = "绘入";
+"Draw Out" = "绘出";
+"Slide Up" = "上滑";
+"Slide" = "滑动";
+"Wipe" = "擦除";
+"Stagger" = "错开";
+"Stagger only applies when the drawing has more than one item." = "仅当绘图包含多个项目时，错开效果才会生效。";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "绘入会在线条、箭头、手绘笔触和形状轮廓出现时进行描边动画；其他项目则直接弹出。";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "叠加层…";
+"Overlay" = "叠加层";
+"This project doesn't have a folder to import files into." = "此项目没有可用于导入文件的文件夹。";
+"Importing overlay..." = "正在导入叠加层...";
+"That file couldn't be read as a video or image." = "无法将该文件读取为视频或图片。";
+"Couldn't copy that file into the project." = "无法将该文件复制到项目中。";
+"This video has no transparency — it will cover the picture" = "此视频没有透明度 — 它会遮住画面";
+"Replace Media…" = "替换媒体…";
+"The overlay file is missing. Replace it to bring the overlay back." = "叠加层文件缺失。替换它以恢复叠加层。";
+"Media" = "媒体";
+"Opacity" = "不透明度";
+"Reset Size" = "重置大小";
+"Opaque" = "不透明";

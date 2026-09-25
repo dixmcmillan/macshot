@@ -96,6 +96,52 @@ nonisolated final class VideoWebcamLayer: @unchecked Sendable {
     }
 }
 
+/// A media overlay (motion graphic clip or still image) composited over the
+/// content, placed exactly like a text box (content-normalized `rect`
+/// through crop and the camera transform). Unlike text/censor — which are
+/// evaluated against source time every frame so they track content through
+/// speed ramps and freezes — an overlay's own visibility window runs on the
+/// OUTPUT/composition clock starting at `compStart` (see `VideoOverlaySegment`'s
+/// doc comment): it keeps animating over a freeze and isn't sped up.
+nonisolated final class VideoOverlayLayer: @unchecked Sendable {
+    let id: UUID
+    /// Composition track carrying the decoded overlay video; `nil` for a still image.
+    let trackID: Int32?
+    /// Pre-loaded still image (already upright); `nil` for a video overlay.
+    let stillImage: CIImage?
+    /// Upright transform for the overlay asset's natural image. Identity for stills.
+    let uprightTransform: CGAffineTransform
+    /// Content-normalized placement rect (top-left origin), like a text box.
+    let rect: CGRect
+    /// Composition-clock time the overlay begins.
+    let compStart: Double
+    /// Output-clock seconds the overlay plays.
+    let duration: Double
+    let opacity: Double
+    let fadeIn: Double
+    let fadeOut: Double
+
+    init(id: UUID, trackID: Int32?, stillImage: CIImage?, uprightTransform: CGAffineTransform,
+         rect: CGRect, compStart: Double, duration: Double, opacity: Double, fadeIn: Double, fadeOut: Double) {
+        self.id = id
+        self.trackID = trackID
+        self.stillImage = stillImage
+        self.uprightTransform = uprightTransform
+        self.rect = rect
+        self.compStart = compStart
+        self.duration = duration
+        self.opacity = opacity
+        self.fadeIn = fadeIn
+        self.fadeOut = fadeOut
+    }
+
+    /// Opacity at composition-clock `compTime`; 0 outside `[compStart, compStart + duration)`.
+    nonisolated func opacity(atComposition compTime: Double) -> CGFloat {
+        CGFloat(opacity) * VideoEffectTiming.opacity(at: compTime, start: compStart, end: compStart + duration,
+                                                      fadeIn: fadeIn, fadeOut: fadeOut)
+    }
+}
+
 /// Everything the compositor needs to draw the framed, camera-driven scene.
 nonisolated final class VideoSceneSnapshot: @unchecked Sendable {
     let layout: VideoSceneLayout
@@ -111,12 +157,13 @@ nonisolated final class VideoSceneSnapshot: @unchecked Sendable {
     let captions: [VideoCaptionSegment]
     let captionStyle: VideoCaptionStyle
     let webcam: VideoWebcamLayer?
+    let overlays: [VideoOverlayLayer]
     let textCache = OverlayTextCache()
 
     init(layout: VideoSceneLayout, background: CIImage?, foreground: CIImage?, camera: CameraPath,
          cameraMotionBlur: CGFloat, cursor: VideoCursorLayer?, keystrokes: [KeystrokeTimeline.Label],
          keystrokeStyle: VideoKeystrokeStyle, captions: [VideoCaptionSegment], captionStyle: VideoCaptionStyle,
-         webcam: VideoWebcamLayer?) {
+         webcam: VideoWebcamLayer?, overlays: [VideoOverlayLayer] = []) {
         self.layout = layout
         self.background = background
         self.foreground = foreground
@@ -128,6 +175,7 @@ nonisolated final class VideoSceneSnapshot: @unchecked Sendable {
         self.captions = captions
         self.captionStyle = captionStyle
         self.webcam = webcam
+        self.overlays = overlays
     }
 }
 
@@ -144,6 +192,9 @@ nonisolated enum VideoSceneRenderer {
     static func render(content: CIImage, time: Double, scene: VideoSceneSnapshot,
                        censors: [VideoCensorSnapshot],
                        texts: [EffectsCompositionInstruction.TextSnapshot],
+                       compositionTime: Double = 0,
+                       overlayFrames: [UUID: CIImage] = [:],
+                       annotationLayers: [EffectsCompositionInstruction.AnnotationLayerSnapshot] = [],
                        webcamFrame: CIImage? = nil) -> CIImage {
         let layout = scene.layout
         let canvas = CGRect(origin: .zero, size: layout.canvasSize)
@@ -214,6 +265,31 @@ nonisolated enum VideoSceneRenderer {
             composed = withOpacity(text.image.transformed(by: transform), opacity).composited(over: composed)
         }
 
+        // 4a. Media overlays — placed exactly like text boxes, but timed on
+        // the composition (output) clock rather than source time, so they
+        // keep animating over a freeze and aren't sped up by a speed segment.
+        for overlay in scene.overlays {
+            let opacity = overlay.opacity(atComposition: compositionTime)
+            guard opacity > 0.001 else { continue }
+            guard let frame = overlay.trackID != nil ? overlayFrames[overlay.id] : overlay.stillImage else { continue }
+            let extent = frame.extent
+            guard extent.width > 0, extent.height > 0 else { continue }
+            let r = layout.canvasRect(forContent: overlay.rect).applying(cameraTransform)
+            let out = CGRect(x: r.minX, y: H - r.maxY, width: r.width, height: r.height)
+            guard out.width > 1, out.height > 1 else { continue }
+            let transform = CGAffineTransform(scaleX: out.width / extent.width, y: out.height / extent.height)
+                .concatenating(CGAffineTransform(translationX: out.minX, y: out.minY))
+            composed = withOpacity(frame.transformed(by: transform), opacity).composited(over: composed)
+        }
+
+        // 4b. Animated screenshot-annotation layers — placed exactly like
+        // text, drawn above it, in drawing (z) order.
+        for layer in annotationLayers {
+            guard let placed = placeAnnotationLayer(layer, time: time, layout: layout,
+                                                     cameraTransform: cameraTransform, H: H) else { continue }
+            composed = placed.composited(over: composed)
+        }
+
         // 5. Pointer and click effects.
         if let cursor = scene.cursor, cursor.style.show {
             composed = drawCursor(on: composed, cursor: cursor, time: time, scene: scene, camera: camera)
@@ -230,6 +306,63 @@ nonisolated enum VideoSceneRenderer {
             composed = drawCaption(caption.text, opacity: opacity, on: composed, scene: scene)
         }
         return composed.cropped(to: canvas)
+    }
+
+    /// Places one animated annotation layer for this frame: reveal mask (if
+    /// a `draw`/`wipe` is mid-animation), pop scale about its own center,
+    /// slide offset, then the same content-rect → canvas-rect → camera
+    /// placement text boxes use. `nil` when the layer isn't visible this
+    /// frame or its output rect is degenerate.
+    private static func placeAnnotationLayer(_ layer: EffectsCompositionInstruction.AnnotationLayerSnapshot,
+                                             time: Double, layout: VideoSceneLayout,
+                                             cameraTransform: CGAffineTransform, H: CGFloat) -> CIImage? {
+        let motion = layer.motionState(at: time)
+        guard motion.opacity > 0.001 else { return nil }
+
+        var image = layer.image
+        let extent = image.extent
+        guard extent.width > 0, extent.height > 0 else { return nil }
+
+        // Reveal mask — only while a `draw`/`wipe` is actually mid-animation
+        // (`VideoAnnotationMotion` returns nil progress otherwise), so a
+        // fully-drawn or not-yet-started frame skips the mask entirely.
+        if let progress = motion.revealProgress, let reveal = layer.reveal,
+           let mask = VideoAnnotationRevealMask.build(reveal: reveal, progress: progress, pixelSize: extent.size) {
+            image = maskedByAlpha(image, CIImage(cgImage: mask))
+        } else if let progress = motion.wipeProgress,
+                  let mask = VideoAnnotationRevealMask.buildWipe(progress: progress, pixelSize: extent.size) {
+            image = maskedByAlpha(image, CIImage(cgImage: mask))
+        }
+
+        let r = layout.canvasRect(forContent: layer.rect).applying(cameraTransform)
+        let out = CGRect(x: r.minX, y: H - r.maxY, width: r.width, height: r.height)
+        guard out.width > 1, out.height > 1 else { return nil }
+
+        var transform = CGAffineTransform(scaleX: out.width / extent.width, y: out.height / extent.height)
+            .concatenating(CGAffineTransform(translationX: out.minX, y: out.minY))
+        if motion.scale != 1 {
+            let center = CGPoint(x: out.midX, y: out.midY)
+            transform = transform
+                .concatenating(CGAffineTransform(translationX: -center.x, y: -center.y))
+                .concatenating(CGAffineTransform(scaleX: motion.scale, y: motion.scale))
+                .concatenating(CGAffineTransform(translationX: center.x, y: center.y))
+        }
+        if motion.slideOffset != 0 {
+            // Entrance rises from below: shift down (negative Y, CI is
+            // y-up) by the fraction of canvas height, easing to 0.
+            transform = transform.concatenating(CGAffineTransform(translationX: 0, y: -motion.slideOffset * H))
+        }
+        return withOpacity(image.transformed(by: transform), motion.opacity)
+    }
+
+    /// `image` with `mask`'s alpha channel applied, keeping `image`'s own
+    /// extent (an empty background composited under a same-sized foreground).
+    private static func maskedByAlpha(_ image: CIImage, _ mask: CIImage) -> CIImage {
+        let blend = CIFilter.blendWithAlphaMask()
+        blend.inputImage = image
+        blend.backgroundImage = CIImage.empty()
+        blend.maskImage = mask
+        return (blend.outputImage ?? image).cropped(to: image.extent)
     }
 
     /// Top-left canvas transform → Core Image (bottom-left) transform.

@@ -835,3 +835,43 @@
 "Zoom out timeline" = "Riduci timeline";
 "macOS" = "macOS";
 "Sway" = "Oscillazione";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Annota";
+"Annotate Frame" = "Annota fotogramma";
+"Annotation" = "Annotazione";
+"Edit Drawing…" = "Modifica disegno…";
+"Hold video while shown" = "Ferma il video finché è mostrato";
+"Discard Drawing?" = "Scartare il disegno?";
+"Your drawing will be lost if you close without adding it." = "Il disegno andrà perso se chiudi senza aggiungerlo.";
+"Couldn't capture this frame" = "Impossibile catturare questo fotogramma";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Entrata";
+"Exit" = "Uscita";
+"Animation" = "Animazione";
+"Timing" = "Tempistica";
+"Pop" = "Comparsa istantanea";
+"Draw In" = "Tracciato in entrata";
+"Draw Out" = "Tracciato in uscita";
+"Slide Up" = "Scorrimento verso l'alto";
+"Slide" = "Scorrimento";
+"Wipe" = "Tendina";
+"Stagger" = "Sfalsamento";
+"Stagger only applies when the drawing has more than one item." = "Lo sfalsamento si applica solo quando il disegno contiene più di un elemento.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Il tracciato in entrata disegna linee, frecce, tratti a mano libera e contorni delle forme man mano che compaiono; gli altri elementi compaiono semplicemente all'improvviso.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Sovrapposizione…";
+"Overlay" = "Sovrapposizione";
+"This project doesn't have a folder to import files into." = "Questo progetto non ha una cartella in cui importare i file.";
+"Importing overlay..." = "Importazione sovrapposizione...";
+"That file couldn't be read as a video or image." = "Impossibile leggere questo file come video o immagine.";
+"Couldn't copy that file into the project." = "Impossibile copiare questo file nel progetto.";
+"This video has no transparency — it will cover the picture" = "Questo video non ha trasparenza: coprirà l'immagine";
+"Replace Media…" = "Sostituisci contenuto…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Il file della sovrapposizione è mancante. Sostituiscilo per ripristinare la sovrapposizione.";
+"Media" = "Media";
+"Opacity" = "Opacità";
+"Reset Size" = "Ripristina dimensione";
+"Opaque" = "Opaco";

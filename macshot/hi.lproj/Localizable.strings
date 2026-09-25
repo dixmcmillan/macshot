@@ -854,3 +854,43 @@
 "Zoom out timeline" = "टाइमलाइन ज़ूम आउट करें";
 "macOS" = "macOS";
 "Sway" = "झुकाव";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "एनोटेट करें";
+"Annotate Frame" = "फ़्रेम एनोटेट करें";
+"Annotation" = "एनोटेशन";
+"Edit Drawing…" = "ड्रॉइंग संपादित करें…";
+"Hold video while shown" = "दिखाए जाने के दौरान वीडियो रोकें";
+"Discard Drawing?" = "ड्रॉइंग त्यागें?";
+"Your drawing will be lost if you close without adding it." = "बिना जोड़े बंद करने पर आपकी ड्रॉइंग खो जाएगी।";
+"Couldn't capture this frame" = "यह फ़्रेम कैप्चर नहीं हो सका";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "प्रवेश";
+"Exit" = "निकास";
+"Animation" = "एनिमेशन";
+"Timing" = "टाइमिंग";
+"Pop" = "पॉप";
+"Draw In" = "ड्रॉ इन";
+"Draw Out" = "ड्रॉ आउट";
+"Slide Up" = "स्लाइड अप";
+"Slide" = "स्लाइड";
+"Wipe" = "वाइप";
+"Stagger" = "क्रमिक विलंब";
+"Stagger only applies when the drawing has more than one item." = "क्रमिक विलंब तभी लागू होता है जब ड्रॉइंग में एक से ज़्यादा आइटम हों।";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "ड्रॉ इन लाइनों, ऐरो, फ़्रीहैंड स्ट्रोक और शेप की आउटलाइन को दिखाई देते समय खींचता है; बाकी आइटम बस पॉप-इन होते हैं।";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "ओवरले…";
+"Overlay" = "ओवरले";
+"This project doesn't have a folder to import files into." = "इस प्रोजेक्ट में फ़ाइलें आयात करने के लिए कोई फ़ोल्डर नहीं है।";
+"Importing overlay..." = "ओवरले आयात हो रहा है...";
+"That file couldn't be read as a video or image." = "उस फ़ाइल को वीडियो या इमेज के रूप में नहीं पढ़ा जा सका।";
+"Couldn't copy that file into the project." = "उस फ़ाइल को प्रोजेक्ट में कॉपी नहीं किया जा सका।";
+"This video has no transparency — it will cover the picture" = "इस वीडियो में पारदर्शिता नहीं है — यह चित्र को ढक देगा";
+"Replace Media…" = "मीडिया बदलें…";
+"The overlay file is missing. Replace it to bring the overlay back." = "ओवरले फ़ाइल गुम है। ओवरले वापस लाने के लिए इसे बदलें।";
+"Media" = "मीडिया";
+"Opacity" = "अपारदर्शिता";
+"Reset Size" = "आकार रीसेट करें";
+"Opaque" = "अपारदर्शी";

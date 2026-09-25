@@ -115,7 +115,7 @@ final class VideoEditorExporter {
             timeRange: CMTimeRange(start: .zero, duration: prepared.processed.composition.duration),
             outputURL: outputURL, videoSettings: plan.outputSettings, decodedSize: nil,
             outputTransform: .identity, sourceFrameDuration: document.frameDuration)
-        request.additionalVideoTracks = prepared.processed.cameraTrack.map { [$0] } ?? []
+        request.additionalVideoTracks = Self.additionalVideoTracks(prepared.processed)
         return VideoExportJob(request: request, sourceLease: lease)
     }
 
@@ -126,8 +126,23 @@ final class VideoEditorExporter {
             composition: prepared.composition,
             timeRange: CMTimeRange(start: .zero, duration: prepared.processed.composition.duration),
             outputURL: outputURL, sourceLease: document.source.lease)
-        request.additionalVideoTracks = prepared.processed.cameraTrack.map { [$0] } ?? []
+        request.additionalVideoTracks = Self.additionalVideoTracks(prepared.processed)
         return request
+    }
+
+    /// Every track beyond the main video track the custom compositor may
+    /// fetch a source frame from (`request.sourceFrame(byTrackID:)`): the
+    /// webcam and any placed video overlay. The manual reader path (medium/
+    /// low MP4, GIF) must open all of them or those frames come back nil;
+    /// `AVAssetExportSession`'s own pipeline (high-quality MP4) does this
+    /// itself from `requiredSourceTrackIDs` and needs no help.
+    private static func additionalVideoTracks(_ processed: VideoCompositionBuilder.Result) -> [AVAssetTrack] {
+        var tracks: [AVAssetTrack] = []
+        if let cameraTrack = processed.cameraTrack { tracks.append(cameraTrack) }
+        for placement in processed.overlayPlacements.values {
+            if let track = processed.composition.track(withTrackID: placement.trackID) { tracks.append(track) }
+        }
+        return tracks
     }
 
     private func encodingPlan(_ settings: VideoExportSettings, canvas: CGSize, project: VideoProject) -> VideoExportEncodingPlan? {

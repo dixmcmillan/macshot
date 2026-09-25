@@ -107,7 +107,7 @@ final class VideoStageView: NSView {
     private func updateCameraSuspension() {
         let spatial: Bool
         switch document.selection {
-        case .zoom?, .censor?, .text?: spatial = true
+        case .zoom?, .censor?, .text?, .overlay?: spatial = true
         default: spatial = false
         }
         let suspend = (spatial && !isPlaying) || isCropping
@@ -126,8 +126,17 @@ final class VideoStageView: NSView {
     override func mouseDown(with event: NSEvent) {
         // While playing, a click pauses: editing happens on a still frame.
         if isPlaying, !isCropping { playback.pause(); return }
-        // Clicking the empty stage clears the selection.
         overlay.endTextEditing(commit: true)
+        // Annotations have no stage handles (`VideoStageOverlay.currentRect()`
+        // returns nil for them), so a click here — unlike zoom/censor/text,
+        // which the overlay itself intercepts — always reaches the stage.
+        // Double-clicking the selected drawing opens it for editing instead
+        // of clearing the selection.
+        if event.clickCount == 2, case .annotation(let id)? = document.selection {
+            (window?.windowController as? VideoEditorWindowController)?.editAnnotation(id: id)
+            return
+        }
+        // Clicking the empty stage clears the selection.
         if !isCropping { document.select(nil) }
     }
 }
@@ -202,8 +211,25 @@ final class VideoStageOverlay: NSView {
         case .text(let id)?:
             guard let t = p.texts.first(where: { $0.id == id }) else { return nil }
             return (sceneRect(forContent: t.rect), VideoEditorStyle.text, "")
+        case .overlay(let id)?:
+            guard let o = p.overlays.first(where: { $0.id == id }) else { return nil }
+            return (sceneRect(forContent: o.rect), VideoEditorStyle.overlay, "")
         default:
             return nil
+        }
+    }
+
+    /// Overlays keep their media's aspect ratio; zoom windows keep the
+    /// canvas's. Both resize uniformly from corner handles about the
+    /// opposite corner — `nil` means free (unconstrained) resizing.
+    private var lockedAspect: CGFloat? {
+        guard mode == .selection, let layout else { return nil }
+        switch document.selection {
+        case .zoom?: return 1
+        case .overlay(let id)?:
+            guard let o = document.project.overlays.first(where: { $0.id == id }) else { return nil }
+            return VideoOverlayEditing.normalizedAspect(mediaSize: o.mediaSize, canvasSize: layout.canvasSize)
+        default: return nil
         }
     }
 
@@ -257,16 +283,11 @@ final class VideoStageOverlay: NSView {
     private func handles(for r: NSRect) -> [(Handle, NSPoint)] {
         var result: [(Handle, NSPoint)] = [(.nw, NSPoint(x: r.minX, y: r.minY)), (.ne, NSPoint(x: r.maxX, y: r.minY)),
                                            (.sw, NSPoint(x: r.minX, y: r.maxY)), (.se, NSPoint(x: r.maxX, y: r.maxY))]
-        if !isZoomSelected {
+        if lockedAspect == nil {
             result += [(.n, NSPoint(x: r.midX, y: r.minY)), (.s, NSPoint(x: r.midX, y: r.maxY)),
                        (.w, NSPoint(x: r.minX, y: r.midY)), (.e, NSPoint(x: r.maxX, y: r.midY))]
         }
         return result
-    }
-
-    private var isZoomSelected: Bool {
-        guard mode == .selection, case .zoom? = document.selection else { return false }
-        return true
     }
 
     // MARK: Input
@@ -333,15 +354,23 @@ final class VideoStageOverlay: NSView {
         case .se: maxX += dx; maxY += dy
         case .body: break
         }
-        if isZoomSelected {
-            // Zoom windows keep the canvas aspect: resize uniformly about the
-            // opposite corner.
-            let side = max(maxX - minX, maxY - minY)
+        if let aspect = lockedAspect {
+            // Resize uniformly about the opposite (anchor) corner, at the
+            // locked aspect ratio (1 = the canvas's own, for zoom windows;
+            // the media's, for overlays).
+            let anchor: CGPoint, free: CGPoint
             switch handle {
-            case .nw: minX = maxX - side; minY = maxY - side
-            case .ne: maxX = minX + side; minY = maxY - side
-            case .sw: minX = maxX - side; maxY = minY + side
-            default: maxX = minX + side; maxY = minY + side
+            case .nw: anchor = CGPoint(x: maxX, y: maxY); free = CGPoint(x: minX, y: minY)
+            case .ne: anchor = CGPoint(x: minX, y: maxY); free = CGPoint(x: maxX, y: minY)
+            case .sw: anchor = CGPoint(x: maxX, y: minY); free = CGPoint(x: minX, y: maxY)
+            default: anchor = CGPoint(x: minX, y: minY); free = CGPoint(x: maxX, y: maxY)
+            }
+            let corrected = VideoOverlayEditing.aspectLockedCorner(anchor: anchor, freeCorner: free, aspect: aspect)
+            switch handle {
+            case .nw: minX = corrected.x; minY = corrected.y
+            case .ne: maxX = corrected.x; minY = corrected.y
+            case .sw: minX = corrected.x; maxY = corrected.y
+            default: maxX = corrected.x; maxY = corrected.y
             }
         }
         let minSize: CGFloat = 0.03
@@ -383,6 +412,10 @@ final class VideoStageOverlay: NSView {
         case .text(let id)?:
             document.edit([.render]) { project in
                 project.texts.first { $0.id == id }?.rect = VideoTextSegment.clampedRect(contentRect(rect))
+            }
+        case .overlay(let id)?:
+            document.edit([.render]) { project in
+                project.overlays.first { $0.id == id }?.rect = VideoProjectLimits.normalizedRect(contentRect(rect))
             }
         default:
             break

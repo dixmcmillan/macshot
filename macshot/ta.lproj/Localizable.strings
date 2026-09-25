@@ -854,3 +854,43 @@
 "Zoom out timeline" = "காலவரிசையைச் சிறிதாக்கு";
 "macOS" = "macOS";
 "Sway" = "அசைவு";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "குறிப்பு சேர்";
+"Annotate Frame" = "பிரேமில் குறிப்பு சேர்";
+"Annotation" = "குறிப்பு";
+"Edit Drawing…" = "வரைபடத்தைத் திருத்து…";
+"Hold video while shown" = "காட்டப்படும்போது வீடியோவை நிறுத்து";
+"Discard Drawing?" = "வரைபடத்தை நிராகரிக்கவா?";
+"Your drawing will be lost if you close without adding it." = "சேர்க்காமல் மூடினால் உங்கள் வரைபடம் இழக்கப்படும்.";
+"Couldn't capture this frame" = "இந்த பிரேமைப் பிடிக்க முடியவில்லை";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "நுழைவு";
+"Exit" = "வெளியேறல்";
+"Animation" = "அசைவூட்டம்";
+"Timing" = "நேரமைப்பு";
+"Pop" = "திடீரெனத் தோன்றல்";
+"Draw In" = "வரைந்து தோன்றல்";
+"Draw Out" = "வரைந்து மறைதல்";
+"Slide Up" = "மேலே சறுக்கல்";
+"Slide" = "சறுக்கல்";
+"Wipe" = "துடைப்பு";
+"Stagger" = "படிப்படி தாமதம்";
+"Stagger only applies when the drawing has more than one item." = "வரைபடத்தில் ஒன்றுக்கு மேற்பட்ட உருப்படிகள் இருந்தால் மட்டுமே படிப்படி தாமதம் பொருந்தும்.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "வரைந்து தோன்றல் நுழையும்போது கோடுகள், அம்புக்குறிகள், கைவரைவு கோடுகள் மற்றும் வடிவக் கோடமைப்புகளைக் கோடிட்டுக் காட்டும்; மற்ற உருப்படிகள் திடீரெனத் தோன்றும்.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "மேலடுக்கு…";
+"Overlay" = "மேலடுக்கு";
+"This project doesn't have a folder to import files into." = "இந்தத் திட்டத்தில் கோப்புகளை இறக்குமதி செய்ய கோப்புறை இல்லை.";
+"Importing overlay..." = "மேலடுக்கு இறக்குமதி செய்யப்படுகிறது...";
+"That file couldn't be read as a video or image." = "அந்தக் கோப்பை வீடியோ அல்லது படமாகப் படிக்க முடியவில்லை.";
+"Couldn't copy that file into the project." = "அந்தக் கோப்பைத் திட்டத்தில் நகலெடுக்க முடியவில்லை.";
+"This video has no transparency — it will cover the picture" = "இந்த வீடியோவில் ஒளிபுகுதன்மை இல்லை — இது படத்தை மறைத்துவிடும்";
+"Replace Media…" = "மீடியாவை மாற்று…";
+"The overlay file is missing. Replace it to bring the overlay back." = "மேலடுக்குக் கோப்பு காணவில்லை. மேலடுக்கைத் திரும்பப் பெற அதை மாற்றவும்.";
+"Media" = "மீடியா";
+"Opacity" = "ஒளிபுகாத்தன்மை";
+"Reset Size" = "அளவை மீட்டமை";
+"Opaque" = "ஒளிபுகா";

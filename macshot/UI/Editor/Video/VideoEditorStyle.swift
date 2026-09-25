@@ -24,6 +24,8 @@ enum VideoEditorStyle {
     static let text = NSColor(srgbRed: 1.0, green: 0.72, blue: 0.20, alpha: 1)
     static let censor = NSColor(srgbRed: 0.96, green: 0.42, blue: 0.30, alpha: 1)
     static let caption = NSColor(srgbRed: 0.55, green: 0.62, blue: 0.72, alpha: 1)
+    static let annotation = NSColor(srgbRed: 0.42, green: 0.82, blue: 0.42, alpha: 1)
+    static let overlay = NSColor(srgbRed: 0.90, green: 0.36, blue: 0.66, alpha: 1)
 
     static func font(_ size: CGFloat, _ weight: NSFont.Weight = .regular) -> NSFont {
         .systemFont(ofSize: size, weight: weight)

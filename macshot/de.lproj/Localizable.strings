@@ -854,3 +854,43 @@
 "Zoom out timeline" = "Zeitleiste verkleinern";
 "macOS" = "macOS";
 "Sway" = "Schwingen";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Markieren";
+"Annotate Frame" = "Bild markieren";
+"Annotation" = "Markierung";
+"Edit Drawing…" = "Zeichnung bearbeiten…";
+"Hold video while shown" = "Video anhalten, solange sie angezeigt wird";
+"Discard Drawing?" = "Zeichnung verwerfen?";
+"Your drawing will be lost if you close without adding it." = "Deine Zeichnung geht verloren, wenn du schließt, ohne sie hinzuzufügen.";
+"Couldn't capture this frame" = "Dieses Bild konnte nicht erfasst werden";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Eingang";
+"Exit" = "Ausgang";
+"Animation" = "Animation";
+"Timing" = "Timing";
+"Pop" = "Erscheinen";
+"Draw In" = "Einzeichnen";
+"Draw Out" = "Zurückzeichnen";
+"Slide Up" = "Hochschieben";
+"Slide" = "Verschieben";
+"Wipe" = "Wischen";
+"Stagger" = "Versatz";
+"Stagger only applies when the drawing has more than one item." = "Versatz wird nur angewendet, wenn die Zeichnung mehr als ein Element enthält.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Einzeichnen zeichnet Linien, Pfeile, Freihandstriche und Formkonturen beim Erscheinen nach; andere Elemente erscheinen einfach.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Overlay…";
+"Overlay" = "Overlay";
+"This project doesn't have a folder to import files into." = "Dieses Projekt hat keinen Ordner, in den Dateien importiert werden können.";
+"Importing overlay..." = "Overlay wird importiert...";
+"That file couldn't be read as a video or image." = "Diese Datei konnte nicht als Video oder Bild gelesen werden.";
+"Couldn't copy that file into the project." = "Diese Datei konnte nicht in das Projekt kopiert werden.";
+"This video has no transparency — it will cover the picture" = "Dieses Video hat keine Transparenz — es verdeckt das Bild";
+"Replace Media…" = "Medium ersetzen…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Die Overlay-Datei fehlt. Ersetze sie, um das Overlay wiederherzustellen.";
+"Media" = "Medium";
+"Opacity" = "Deckkraft";
+"Reset Size" = "Größe zurücksetzen";
+"Opaque" = "Deckend";

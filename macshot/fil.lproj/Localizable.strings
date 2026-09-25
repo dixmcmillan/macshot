@@ -854,3 +854,43 @@
 "Zoom out timeline" = "I-zoom out ang timeline";
 "macOS" = "macOS";
 "Sway" = "Pag-ugoy";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Mag-anotate";
+"Annotate Frame" = "I-anotate ang Frame";
+"Annotation" = "Anotasyon";
+"Edit Drawing…" = "I-edit ang Guhit…";
+"Hold video while shown" = "Ihinto ang video habang ipinapakita";
+"Discard Drawing?" = "Itapon ang guhit?";
+"Your drawing will be lost if you close without adding it." = "Mawawala ang iyong guhit kung isasara mo nang hindi ito idinaragdag.";
+"Couldn't capture this frame" = "Hindi makuha ang frame na ito";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Entrance";
+"Exit" = "Exit";
+"Animation" = "Animation";
+"Timing" = "Timing";
+"Pop" = "Pop";
+"Draw In" = "Draw In";
+"Draw Out" = "Draw Out";
+"Slide Up" = "Slide Up";
+"Slide" = "Slide";
+"Wipe" = "Wipe";
+"Stagger" = "Stagger";
+"Stagger only applies when the drawing has more than one item." = "Gumagana lang ang Stagger kapag may higit sa isang item ang drawing.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Nagti-trace ang Draw In ng mga linya, arrow, freehand stroke, at shape outline habang pumapasok ang mga ito; basta pumo-pop in naman ang ibang item.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Overlay…";
+"Overlay" = "Overlay";
+"This project doesn't have a folder to import files into." = "Walang folder ang project na ito para sa pag-import ng mga file.";
+"Importing overlay..." = "Ini-import ang overlay...";
+"That file couldn't be read as a video or image." = "Hindi mabasa ang file na iyon bilang video o larawan.";
+"Couldn't copy that file into the project." = "Hindi makopya ang file na iyon sa project.";
+"This video has no transparency — it will cover the picture" = "Walang transparency ang video na ito — matatakpan nito ang larawan";
+"Replace Media…" = "Palitan ang Media…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Nawawala ang file ng overlay. Palitan ito para maibalik ang overlay.";
+"Media" = "Media";
+"Opacity" = "Opacity";
+"Reset Size" = "I-reset ang Sukat";
+"Opaque" = "Opaque";

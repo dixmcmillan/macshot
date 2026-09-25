@@ -852,3 +852,43 @@
 "Zoom out timeline" = "Idővonal kicsinyítése";
 "macOS" = "macOS";
 "Sway" = "Billegés";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Jegyzetelés";
+"Annotate Frame" = "Képkocka jegyzetelése";
+"Annotation" = "Jegyzet";
+"Edit Drawing…" = "Rajz szerkesztése…";
+"Hold video while shown" = "Videó megállítása a megjelenítés alatt";
+"Discard Drawing?" = "Rajz elvetése?";
+"Your drawing will be lost if you close without adding it." = "A rajz elvész, ha hozzáadás nélkül zársz be.";
+"Couldn't capture this frame" = "Nem sikerült rögzíteni ezt a képkockát";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Bejövő";
+"Exit" = "Kimenő";
+"Animation" = "Animáció";
+"Timing" = "Időzítés";
+"Pop" = "Felbukkanás";
+"Draw In" = "Berajzolás";
+"Draw Out" = "Kirajzolás";
+"Slide Up" = "Felcsúszás";
+"Slide" = "Csúszás";
+"Wipe" = "Áttörlés";
+"Stagger" = "Késleltetés";
+"Stagger only applies when the drawing has more than one item." = "A késleltetés csak akkor érvényesül, ha a rajz több elemet is tartalmaz.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "A berajzolás megjelenéskor kirajzolja a vonalakat, nyilakat, szabadkézi vonásokat és alakzatkörvonalakat; a többi elem egyszerűen felbukkan.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Rátét…";
+"Overlay" = "Rátét";
+"This project doesn't have a folder to import files into." = "Ehhez a projekthez nincs mappa a fájlok importálásához.";
+"Importing overlay..." = "Rátét importálása...";
+"That file couldn't be read as a video or image." = "Ez a fájl nem volt olvasható videóként vagy képként.";
+"Couldn't copy that file into the project." = "Ezt a fájlt nem sikerült a projektbe másolni.";
+"This video has no transparency — it will cover the picture" = "Ennek a videónak nincs átlátszósága — el fogja takarni a képet";
+"Replace Media…" = "Médiaelem cseréje…";
+"The overlay file is missing. Replace it to bring the overlay back." = "A rátét fájlja hiányzik. Cserélje ki a rátét visszaállításához.";
+"Media" = "Média";
+"Opacity" = "Átlátszatlanság";
+"Reset Size" = "Méret visszaállítása";
+"Opaque" = "Átlátszatlan";

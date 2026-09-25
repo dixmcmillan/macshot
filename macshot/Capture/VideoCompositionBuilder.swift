@@ -1,6 +1,24 @@
 import AVFoundation
 
 enum VideoCompositionBuilder {
+    /// A video-kind overlay's own asset plus the model timing needed to place
+    /// it: source `startTime` (pre-trim, same clock as `pieces`), the
+    /// output-clock `duration` it plays, and `mediaStart` trimming its head.
+    struct OverlayInput {
+        let id: UUID
+        let asset: AVAsset
+        let startTime: Double
+        let duration: Double
+        let mediaStart: Double
+    }
+
+    /// Where a video overlay landed: its own composition track and the
+    /// composition-clock instant it begins at.
+    struct OverlayPlacement: Sendable {
+        let trackID: CMPersistentTrackID
+        let compStart: Double
+    }
+
     struct Result {
         let composition: AVMutableComposition
         let videoTrack: AVMutableCompositionTrack
@@ -9,6 +27,10 @@ enum VideoCompositionBuilder {
         let frameDuration: CMTime
         /// Separately recorded camera, aligned to the source clock.
         var cameraTrack: AVMutableCompositionTrack? = nil
+        /// Video overlays that got their own composition track, keyed by
+        /// segment id. An overlay missing here was skipped (cut out, past the
+        /// trim, or its media couldn't be read) — never fails the whole build.
+        var overlayPlacements: [UUID: OverlayPlacement] = [:]
         var duration: Double { composition.duration.seconds }
     }
 
@@ -26,7 +48,8 @@ enum VideoCompositionBuilder {
     /// Constructs a privately owned composition. Every insert either succeeds
     /// or throws; a partial timeline must never be presented as a valid export.
     static func build(asset: AVAsset, pieces: [VideoSpeeds.Piece], includeAudio: Bool,
-                      sourceFrameDuration: CMTime? = nil, camera: AVAsset? = nil) throws -> Result {
+                      sourceFrameDuration: CMTime? = nil, camera: AVAsset? = nil,
+                      overlays: [OverlayInput] = []) throws -> Result {
         guard let sourceVideo = asset.tracks(withMediaType: .video).first else { throw BuildError.missingVideo }
         guard !pieces.isEmpty else { throw BuildError.invalidTimeline }
         let composition = AVMutableComposition()
@@ -136,8 +159,58 @@ enum VideoCompositionBuilder {
             composition.removeTrack(track)
             return false
         }
+        // Video overlays get their own track each, inserted once at the
+        // composition instant their source `startTime` maps to — not through
+        // the per-piece cut/speed/freeze loop above. Their audio is never
+        // added, so it's muted by construction. A skipped overlay (cut out,
+        // past the trim, unreadable media) simply has no entry in
+        // `overlayPlacements`; it never fails the whole build.
+        var overlayPlacements: [UUID: OverlayPlacement] = [:]
+        for overlay in overlays {
+            guard overlay.duration > 0, let compStart = compositionTime(forSource: overlay.startTime, timeMap: map),
+                  let overlaySource = overlay.asset.tracks(withMediaType: .video).first else { continue }
+            let head = max(0, overlay.mediaStart)
+            let requested = CMTimeRange(start: CMTime(seconds: head, preferredTimescale: overlaySource.naturalTimeScale),
+                                        end: CMTime(seconds: head + overlay.duration, preferredTimescale: overlaySource.naturalTimeScale))
+            let clamped = CMTimeRangeGetIntersection(requested, otherRange: overlaySource.timeRange)
+            guard clamped.duration.isNumeric, clamped.duration.seconds > 0,
+                  let oTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
+            else { continue }
+            oTrack.naturalTimeScale = timeScale
+            oTrack.preferredTransform = overlaySource.preferredTransform
+            do {
+                try oTrack.insertTimeRange(clamped, of: overlaySource, at: CMTime(seconds: compStart, preferredTimescale: timeScale))
+                overlayPlacements[overlay.id] = OverlayPlacement(trackID: oTrack.trackID, compStart: compStart)
+            } catch {
+                composition.removeTrack(oTrack)
+            }
+        }
         return Result(composition: composition, videoTrack: video, audioTracks: audible,
-                      timeMap: map, frameDuration: frameDuration, cameraTrack: cameraTrack)
+                      timeMap: map, frameDuration: frameDuration, cameraTrack: cameraTrack,
+                      overlayPlacements: overlayPlacements)
+    }
+
+    /// Composition-clock time at which `sourceTime` plays, or `nil` if it
+    /// falls inside a cut or past the trimmed timeline. Unlike zoom/censor/
+    /// text (evaluated against source time every frame so they track content
+    /// through speed ramps and freezes), an overlay's *own* timing starts at
+    /// this single composition instant and then runs on the output clock —
+    /// this is the one place that instant is computed, from the same
+    /// `timeMap` the compositor uses to go the other direction.
+    static func compositionTime(forSource sourceTime: Double,
+                                timeMap: [EffectsCompositionInstruction.TimeMapEntry]) -> Double? {
+        for entry in timeMap {
+            if entry.factor == 0 {
+                // Freeze: a single held source instant spanning `compEnd - compStart`.
+                if abs(sourceTime - entry.sourceStart) < 0.0001 { return entry.compStart }
+                continue
+            }
+            let sourceEnd = entry.sourceStart + (entry.compEnd - entry.compStart) * entry.factor
+            if sourceTime >= entry.sourceStart - 0.0001 && sourceTime < sourceEnd - 0.0001 {
+                return entry.compStart + (sourceTime - entry.sourceStart) / entry.factor
+            }
+        }
+        return nil
     }
 
     /// Camera time mirrors the screen: the same source range, scaled the same

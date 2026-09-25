@@ -854,3 +854,43 @@
 "Zoom out timeline" = "کوچک‌نمایی خط زمانی";
 "macOS" = "macOS";
 "Sway" = "تاب‌خوردن";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "یادداشت‌گذاری";
+"Annotate Frame" = "یادداشت‌گذاری فریم";
+"Annotation" = "یادداشت";
+"Edit Drawing…" = "ویرایش طرح…";
+"Hold video while shown" = "توقف ویدیو در زمان نمایش";
+"Discard Drawing?" = "طرح نادیده گرفته شود؟";
+"Your drawing will be lost if you close without adding it." = "اگر بدون افزودن ببندید، طرح شما از دست می‌رود.";
+"Couldn't capture this frame" = "این فریم گرفته نشد";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "ورودی";
+"Exit" = "خروجی";
+"Animation" = "انیمیشن";
+"Timing" = "زمان‌بندی";
+"Pop" = "ظهور ناگهانی";
+"Draw In" = "ترسیم ورودی";
+"Draw Out" = "ترسیم خروجی";
+"Slide Up" = "لغزش به بالا";
+"Slide" = "لغزش";
+"Wipe" = "جارویی";
+"Stagger" = "تأخیر پلکانی";
+"Stagger only applies when the drawing has more than one item." = "تأخیر پلکانی فقط زمانی اعمال می‌شود که طرح بیش از یک عنصر داشته باشد.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "ترسیم ورودی خطوط، فلش‌ها، ضربه‌های آزاد و کانتور شکل‌ها را هنگام ورود ترسیم می‌کند؛ سایر عناصر فقط ناگهان ظاهر می‌شوند.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "لایه…";
+"Overlay" = "لایه";
+"This project doesn't have a folder to import files into." = "این پروژه پوشه‌ای برای وارد کردن فایل‌ها ندارد.";
+"Importing overlay..." = "در حال وارد کردن لایه...";
+"That file couldn't be read as a video or image." = "آن فایل را نمی‌توان به‌صورت ویدیو یا تصویر خواند.";
+"Couldn't copy that file into the project." = "نسخه‌برداری از آن فایل در پروژه ممکن نشد.";
+"This video has no transparency — it will cover the picture" = "این ویدیو شفافیت ندارد — روی تصویر را می‌پوشاند";
+"Replace Media…" = "جایگزینی رسانه…";
+"The overlay file is missing. Replace it to bring the overlay back." = "فایل لایه موجود نیست. برای بازگرداندن لایه، آن را جایگزین کنید.";
+"Media" = "رسانه";
+"Opacity" = "کدری";
+"Reset Size" = "بازنشانی اندازه";
+"Opaque" = "کدر";

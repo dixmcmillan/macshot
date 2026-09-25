@@ -854,3 +854,43 @@
 "Zoom out timeline" = "Умањи временску линију";
 "macOS" = "macOS";
 "Sway" = "Њихање";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Означи";
+"Annotate Frame" = "Означи кадар";
+"Annotation" = "Ознака";
+"Edit Drawing…" = "Измени цртеж…";
+"Hold video while shown" = "Заустави видео док је приказан";
+"Discard Drawing?" = "Одбацити цртеж?";
+"Your drawing will be lost if you close without adding it." = "Ваш цртеж ће бити изгубљен ако затворите без додавања.";
+"Couldn't capture this frame" = "Није могуће снимити овај кадар";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Улазак";
+"Exit" = "Излазак";
+"Animation" = "Анимација";
+"Timing" = "Тајминг";
+"Pop" = "Изненадно појављивање";
+"Draw In" = "Уцртавање";
+"Draw Out" = "Исцртавање";
+"Slide Up" = "Клизање нагоре";
+"Slide" = "Клизање";
+"Wipe" = "Брисање";
+"Stagger" = "Постепено кашњење";
+"Stagger only applies when the drawing has more than one item." = "Постепено кашњење се примењује само када цртеж има више од једне ставке.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Уцртавање исцртава линије, стрелице, слободне потезе и контуре облика док се појављују; остале ставке се једноставно изненада појаве.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Слој…";
+"Overlay" = "Слој";
+"This project doesn't have a folder to import files into." = "Овај пројекат нема фасциклу за увоз датотека.";
+"Importing overlay..." = "Увоз слоја...";
+"That file couldn't be read as a video or image." = "Ту датотеку није било могуће прочитати као видео или слику.";
+"Couldn't copy that file into the project." = "Ту датотеку није било могуће копирати у пројекат.";
+"This video has no transparency — it will cover the picture" = "Овај видео нема провидност — прекриће слику";
+"Replace Media…" = "Замени медиј…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Недостаје датотека слоја. Замените је да бисте вратили слој.";
+"Media" = "Медиј";
+"Opacity" = "Непровидност";
+"Reset Size" = "Ресетуј величину";
+"Opaque" = "Непровидно";

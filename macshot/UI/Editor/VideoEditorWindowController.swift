@@ -1,5 +1,6 @@
 import AVFoundation
 import AppKit
+import ImageIO
 import UniformTypeIdentifiers
 
 /// The video editor window: inspector on the left, the framed preview in the
@@ -32,6 +33,12 @@ final class VideoEditorWindowController: NSWindowController, NSWindowDelegate {
     var savedRevision: UInt64?
     private var statusTimer: Timer?
     private var captionTask: Task<Void, Never>?
+    /// True while a frame grab or the annotator window is up, so a second
+    /// "Annotate" press (menu, shortcut, or edit) can't open a second window.
+    private var isAnnotatorOpen = false
+    /// True while an overlay import (copy + probe) is running, so a second
+    /// "Overlay…" press can't start a second one.
+    private var isImportingOverlay = false
 
     /// Opens a video in the editor.
     /// - Parameter deleteOnClose: Temporary input is removed after the editor
@@ -355,6 +362,13 @@ final class VideoEditorWindowController: NSWindowController, NSWindowDelegate {
         menu.addItem(item(L("Freeze Frame"), "snowflake", nil, #selector(addFreezeAction)))
         menu.addItem(.separator())
         menu.addItem(item(L("Text"), "textformat", .overlays))
+        menu.addItem(item(L("Annotate"), "scribble.variable", nil, #selector(annotateAction)))
+        let overlayItem = item(L("Overlay…"), "square.stack.3d.up", nil, #selector(addOverlayAction))
+        if editorDocument.projectDirectory == nil {
+            overlayItem.isEnabled = false
+            overlayItem.toolTip = L("This project doesn't have a folder to import files into.")
+        }
+        menu.addItem(overlayItem)
         menu.addItem(item(L("Blur"), "eye.slash", nil, #selector(addBlurAction)))
         _ = t
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY + 4), in: sender)
@@ -368,6 +382,7 @@ final class VideoEditorWindowController: NSWindowController, NSWindowDelegate {
     @objc private func addSpeedAction() { addSpeed(at: playback.currentSourceTime) }
     @objc private func addFreezeAction() { addFreeze(at: playback.currentSourceTime) }
     @objc private func addBlurAction() { addCensor(at: playback.currentSourceTime) }
+    @objc private func annotateAction() { beginAnnotate() }
     @objc func autoZoomAction() { autoZoom() }
 
     // MARK: Adding items
@@ -466,6 +481,268 @@ final class VideoEditorWindowController: NSWindowController, NSWindowDelegate {
         playback.seek(toSource: start + 0.3)
     }
 
+    // MARK: Pause-and-annotate
+
+    /// Pauses on the current frame and opens the screenshot annotation
+    /// toolkit over it (`VideoFrameAnnotator`). A non-empty result becomes a
+    /// new `VideoAnnotationSegment` on the timeline.
+    private func beginAnnotate() {
+        guard !isAnnotatorOpen else { return }
+        playback.pause()
+        let t = playback.currentSourceTime
+        isAnnotatorOpen = true
+        let canvasSize = VideoAnnotationSegment.canvasSize(forContent: editorDocument.contentSize)
+        grabFrame(at: t) { [weak self] cgImage in
+            guard let self else { return }
+            guard let cgImage else {
+                self.isAnnotatorOpen = false
+                self.showStatus(L("Couldn't capture this frame"), isError: true)
+                return
+            }
+            VideoFrameAnnotator.open(frame: cgImage, canvasSize: canvasSize, annotations: [], title: L("Annotate Frame")) { [weak self] result in
+                guard let self else { return }
+                self.isAnnotatorOpen = false
+                guard let result, !result.isEmpty else { return }
+                self.appendAnnotationSegment(result, canvasSize: canvasSize, at: t)
+            }
+        }
+    }
+
+    private func appendAnnotationSegment(_ annotations: [Annotation], canvasSize: CGSize, at t: Double) {
+        let trimEnd = editorDocument.project.trimEnd
+        var start = t
+        var end = min(start + VideoAnnotationSegment.defaultDuration, trimEnd)
+        if end - start < VideoAnnotationSegment.minDuration {
+            start = max(0, end - VideoAnnotationSegment.minDuration)
+        }
+        guard end > start, let data = AnnotationSerializer.encode(annotations) else { return }
+        let defaults = VideoAnnotationSegment.lastUsedAnimationDefaults()
+        let segment = VideoAnnotationSegment(startTime: start, endTime: end, canvasSize: canvasSize, annotationData: data,
+                                             fadeIn: defaults.fadeIn, fadeOut: defaults.fadeOut,
+                                             entrance: defaults.entrance, exit: defaults.exit, stagger: defaults.stagger)
+        editorDocument.edit([.segments, .render]) { $0.annotations.append(segment) }
+        editorDocument.select(.annotation(segment.id))
+    }
+
+    /// Re-opens an existing drawing for editing. Grabs the frame at the
+    /// segment's start (the moment it was originally drawn over) so the
+    /// canvas matches what the user drew on, then writes the result back as
+    /// one undo step. An empty result (everything deleted) removes the segment.
+    func editAnnotation(id: UUID) {
+        guard !isAnnotatorOpen, let segment = editorDocument.project.annotations.first(where: { $0.id == id }) else { return }
+        playback.pause()
+        isAnnotatorOpen = true
+        let canvasSize = segment.canvasSize
+        let startingAnnotations = segment.annotations
+        grabFrame(at: segment.startTime) { [weak self] cgImage in
+            guard let self else { return }
+            guard let cgImage else {
+                self.isAnnotatorOpen = false
+                self.showStatus(L("Couldn't capture this frame"), isError: true)
+                return
+            }
+            VideoFrameAnnotator.open(frame: cgImage, canvasSize: canvasSize, annotations: startingAnnotations,
+                                     title: L("Annotate Frame")) { [weak self] result in
+                guard let self else { return }
+                self.isAnnotatorOpen = false
+                guard let result else { return }
+                self.editorDocument.edit([.segments, .render, .timing]) { project in
+                    if result.isEmpty {
+                        project.annotations.removeAll { $0.id == id }
+                    } else if let data = AnnotationSerializer.encode(result),
+                              let seg = project.annotations.first(where: { $0.id == id }) {
+                        // The annotation count feeds into `holdTime` (stagger
+                        // multiplies by count - 1), so adding or removing
+                        // items here can move it — keep an attached freeze
+                        // with it, in this same undo step.
+                        let oldHold = seg.holdTime
+                        seg.annotationData = data
+                        self.editorDocument.relocateAnnotationFreeze(in: project, from: oldHold, to: seg.holdTime)
+                    }
+                }
+                if result.isEmpty, self.editorDocument.selection == .annotation(id) { self.editorDocument.select(nil) }
+            }
+        }
+    }
+
+    /// The asset is only read off the main actor by the frame-grab task,
+    /// exactly like the timeline's thumbnail and waveform generators.
+    private struct FrameGrabInput: @unchecked Sendable {
+        nonisolated(unsafe) let asset: AVAsset
+    }
+
+    /// Grabs the exact upright, uncropped frame at `time` from the untouched
+    /// source asset — not the (possibly cropped/zoomed) preview composition —
+    /// so canvas points drawn here map directly via `VideoAnnotationSegment`.
+    private func grabFrame(at time: Double, completion: @escaping (CGImage?) -> Void) {
+        let input = FrameGrabInput(asset: editorDocument.asset)
+        let lease = editorDocument.source.lease
+        Task {
+            let image = await Task.detached(priority: .userInitiated) { () -> CGImage? in
+                let generator = AVAssetImageGenerator(asset: input.asset)
+                generator.appliesPreferredTrackTransform = true
+                generator.requestedTimeToleranceBefore = .zero
+                generator.requestedTimeToleranceAfter = .zero
+                defer { withExtendedLifetime(lease) {} }
+                return try? generator.copyCGImage(at: CMTime(seconds: time, preferredTimescale: 600), actualTime: nil)
+            }.value
+            completion(image)
+        }
+    }
+
+    // MARK: Overlay import
+
+    private static let overlayContentTypes: [UTType] =
+        ["mov", "m4v", "mp4", "png", "heic", "jpg", "jpeg", "tiff"].compactMap { UTType(filenameExtension: $0) }
+
+    private struct ImportedOverlayMedia {
+        let fileName: String
+        let displayName: String
+        let kind: VideoOverlaySegment.Kind
+        let mediaDuration: Double
+        let mediaSize: CGSize
+        let hasAlpha: Bool
+    }
+
+    @objc private func addOverlayAction() { presentOverlayImportPanel() }
+
+    private func presentOverlayImportPanel() {
+        guard editorDocument.projectDirectory != nil, let window else {
+            showStatus(L("This project doesn't have a folder to import files into."), isError: true)
+            return
+        }
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = Self.overlayContentTypes
+        panel.allowsMultipleSelection = false
+        let t = playback.currentSourceTime
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url, let self else { return }
+            self.importOverlay(from: url, at: t, replacing: nil)
+        }
+    }
+
+    /// Re-imports media for an existing overlay, keeping its timing and
+    /// placement (start, duration/rect) — only the underlying file and its
+    /// probed metadata change. Reachable from the inspector's "Replace
+    /// Media…" button and the timeline's context menu.
+    func replaceOverlayMedia(id: UUID) {
+        guard editorDocument.project.overlays.contains(where: { $0.id == id }), let window else { return }
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = Self.overlayContentTypes
+        panel.allowsMultipleSelection = false
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url, let self else { return }
+            self.importOverlay(from: url, at: self.playback.currentSourceTime, replacing: id)
+        }
+    }
+
+    /// Copies the chosen file into the project folder and probes it, both off
+    /// the main thread — a ProRes 4444 overlay can be very large. `showStatus`
+    /// keeps that visible for as long as it takes. A copy or probe failure is
+    /// reported the same way; nothing is silently dropped.
+    private func importOverlay(from url: URL, at time: Double, replacing existingID: UUID?) {
+        guard !isImportingOverlay else { return }
+        guard let destination = editorDocument.overlayImportDestination(extension: url.pathExtension) else {
+            showStatus(L("This project doesn't have a folder to import files into."), isError: true)
+            return
+        }
+        isImportingOverlay = true
+        let displayName = url.lastPathComponent
+        let isImage = ["png", "heic", "heif", "jpg", "jpeg", "tiff", "tif"].contains(destination.pathExtension.lowercased())
+        showStatus(L("Importing overlay..."), persist: true)
+        var imported: ImportedOverlayMedia?
+        MediaExportCoordinator.shared.start(title: displayName, status: L("Importing overlay..."), operation: { cancellation, _ in
+            try Task.checkCancellation()
+            try await MediaExportIO.perform {
+                let access = url.startAccessingSecurityScopedResource()
+                defer { if access { url.stopAccessingSecurityScopedResource() } }
+                try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try FileManager.default.copyItem(at: url, to: destination)
+            }
+            try cancellation.check()
+            if isImage {
+                let probe = try await MediaExportIO.perform { () -> (CGSize, Bool) in
+                    guard let source = CGImageSourceCreateWithURL(destination as CFURL, nil),
+                          let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+                          let w = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
+                          let h = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue, w > 0, h > 0 else {
+                        throw CocoaError(.fileReadCorruptFile)
+                    }
+                    return (CGSize(width: w, height: h), VideoOverlayEditing.hasAlpha(imageProperties: props))
+                }
+                imported = ImportedOverlayMedia(fileName: destination.lastPathComponent, displayName: displayName, kind: .image,
+                                                mediaDuration: 0, mediaSize: probe.0, hasAlpha: probe.1)
+            } else {
+                let asset = AVURLAsset(url: destination)
+                let tracks = try await asset.loadTracks(withMediaType: .video)
+                guard let track = tracks.first else { throw CocoaError(.fileReadCorruptFile) }
+                let naturalSize = try await track.load(.naturalSize)
+                let transform = try await track.load(.preferredTransform)
+                let duration = try await asset.load(.duration).seconds
+                let formats = (try? await track.load(.formatDescriptions)) ?? []
+                guard let geometry = VideoRenderGeometry.layout(sourceSize: naturalSize, preferredTransform: transform),
+                      duration.isFinite, duration > 0 else {
+                    throw CocoaError(.fileReadCorruptFile)
+                }
+                imported = ImportedOverlayMedia(fileName: destination.lastPathComponent, displayName: displayName, kind: .video,
+                                                mediaDuration: duration, mediaSize: geometry.uprightSize,
+                                                hasAlpha: VideoOverlayEditing.hasAlpha(formatDescriptions: formats))
+            }
+        }, completion: { [weak self] result in
+            guard let self else { return }
+            self.isImportingOverlay = false
+            switch result {
+            case .success:
+                guard let imported else {
+                    self.showStatus(L("That file couldn't be read as a video or image."), isError: true)
+                    try? FileManager.default.removeItem(at: destination)
+                    return
+                }
+                self.finishOverlayImport(imported, at: time, replacing: existingID)
+            case .failure(let error):
+                try? FileManager.default.removeItem(at: destination)
+                guard !(error is CancellationError) else { return }
+                self.showStatus(L("Couldn't copy that file into the project."), isError: true)
+            }
+        })
+    }
+
+    private func finishOverlayImport(_ imported: ImportedOverlayMedia, at time: Double, replacing existingID: UUID?) {
+        if let existingID {
+            editorDocument.edit([.segments, .render, .timing]) { project in
+                guard let seg = project.overlays.first(where: { $0.id == existingID }) else { return }
+                seg.fileName = imported.fileName
+                seg.displayName = imported.displayName
+                seg.kind = imported.kind
+                seg.mediaDuration = imported.mediaDuration
+                seg.mediaSize = imported.mediaSize
+                seg.mediaStart = 0
+                let cap = imported.kind == .image ? .greatestFiniteMagnitude : max(VideoOverlaySegment.minDuration, imported.mediaDuration)
+                seg.duration = min(max(VideoOverlaySegment.minDuration, seg.duration), cap)
+            }
+            editorDocument.select(.overlay(existingID))
+        } else {
+            let trimEnd = editorDocument.project.trimEnd
+            let start = min(max(0, time), max(0, trimEnd - VideoOverlaySegment.minDuration))
+            let duration: Double
+            switch imported.kind {
+            case .image: duration = VideoOverlaySegment.defaultImageDuration
+            case .video: duration = max(VideoOverlaySegment.minDuration, min(imported.mediaDuration, trimEnd - start))
+            }
+            let rect = VideoOverlaySegment.defaultRect(mediaSize: imported.mediaSize, contentSize: editorDocument.contentSize)
+            let segment = VideoOverlaySegment(kind: imported.kind, fileName: imported.fileName, displayName: imported.displayName,
+                                              startTime: start, duration: duration, mediaDuration: imported.mediaDuration,
+                                              mediaSize: imported.mediaSize, rect: rect)
+            editorDocument.edit([.segments, .render]) { $0.overlays.append(segment) }
+            editorDocument.select(.overlay(segment.id))
+        }
+        if imported.kind == .video, !imported.hasAlpha {
+            showStatus(L("This video has no transparency — it will cover the picture"))
+        } else {
+            showStatus("")
+        }
+    }
+
     func autoZoom() {
         guard let recording = editorDocument.recording else { return }
         let p = editorDocument.project
@@ -538,6 +815,10 @@ final class VideoEditorWindowController: NSWindowController, NSWindowDelegate {
             }
         case .text(let id):
             add(L("Edit Text"), "character.cursor.ibeam") { [weak self] in self?.editText(id: id) }
+        case .annotation(let id):
+            add(L("Edit Drawing…"), "scribble.variable") { [weak self] in self?.editAnnotation(id: id) }
+        case .overlay(let id):
+            add(L("Replace Media…"), "arrow.triangle.2.circlepath") { [weak self] in self?.replaceOverlayMedia(id: id) }
         case .cut, .caption:
             break
         }
@@ -586,6 +867,7 @@ final class VideoEditorWindowController: NSWindowController, NSWindowDelegate {
         if characters.contains("z") { addZoom(at: playback.currentSourceTime); return true }
         if characters.contains("c") { addCut(at: playback.currentSourceTime); return true }
         if characters.contains("t") { addText(at: playback.currentSourceTime); return true }
+        if characters.contains("a") { beginAnnotate(); return true }
         if characters.contains("k") { playback.pause(); return true }
         if characters.contains("l") { playback.play(); return true }
         if characters.contains("j") { playback.step(frames: -Int(max(1, 1 / editorDocument.frameDuration.seconds))); return true }
@@ -698,6 +980,8 @@ extension VideoEditorWindowController: VideoTimelineDelegate {
     }
 
     func timelineDidRequestTextEdit(_ timeline: VideoTimelineView, id: UUID) { editText(id: id) }
+
+    func timelineDidRequestAnnotationEdit(_ timeline: VideoTimelineView, id: UUID) { editAnnotation(id: id) }
 
     func timelineCurrentTime(_ timeline: VideoTimelineView) -> Double { playback?.currentSourceTime ?? 0 }
 }

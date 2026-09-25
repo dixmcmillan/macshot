@@ -1,4 +1,6 @@
 import AppKit
+import AVFoundation
+import ImageIO
 import UniformTypeIdentifiers
 
 /// Left side of the editor: an icon rail choosing a panel, and the panel
@@ -221,6 +223,16 @@ final class VideoInspectorView: NSView {
             self?.document.rememberLook()
         }
         refreshers.append { [weak row] in row?.control.selectedSegment = get() }
+        return row
+    }
+
+    private func popup(_ title: String, _ labels: [String], get: @escaping () -> Int,
+                       change: VideoEditChange = [.render], set: @escaping (VideoProject, Int) -> Void) -> InspectorPopupRow {
+        let row = InspectorPopupRow(title: title, options: labels, selected: get()) { [weak self] i in
+            self?.document.edit(change) { set($0, i) }
+            self?.document.rememberLook()
+        }
+        refreshers.append { [weak row] in row?.setSelected(get()) }
         return row
     }
 
@@ -663,6 +675,12 @@ final class VideoInspectorView: NSView {
         case .text(let id):
             titleLabel.stringValue = L("Text")
             buildTextPanel(id: id)
+        case .annotation(let id):
+            titleLabel.stringValue = L("Annotation")
+            buildAnnotationPanel(id: id)
+        case .overlay(let id):
+            titleLabel.stringValue = L("Overlay")
+            buildOverlayPanel(id: id)
         case .cut(let id):
             titleLabel.stringValue = L("Cut")
             let length = p.cuts.first { $0.id == id }.map { $0.endTime - $0.startTime } ?? 0
@@ -793,6 +811,190 @@ final class VideoInspectorView: NSView {
                    format: { String(format: "%.2fs", $0) }) { p, v in segment(p)?.fadeOut = v },
         ]))
     }
+
+    // MARK: Annotation (pause-and-annotate drawing)
+
+    private func buildAnnotationPanel(id: UUID) {
+        // `document` shadowed locally so the `set` closures below (which run
+        // inside `document.edit`, not on a per-frame `refreshers` cycle) can
+        // reach it without capturing `self`.
+        let document = self.document
+        func segment(_ project: VideoProject) -> VideoAnnotationSegment? { project.annotations.first { $0.id == id } }
+        guard let seg = segment(document.project) else { return }
+        add(button(L("Edit Drawing…"), symbol: "scribble.variable", primary: true, action: #selector(editAnnotationDrawing)))
+
+        let animations = VideoAnnotationSegment.Animation.allCases
+        let entranceLabels = [L("None"), L("Fade"), L("Pop"), L("Draw In"), L("Slide Up"), L("Wipe")]
+        let exitLabels = [L("None"), L("Fade"), L("Pop"), L("Draw Out"), L("Slide"), L("Wipe")]
+
+        /// Entrance-affecting edits (animation, its duration, stagger) can
+        /// move `holdTime`; keep an attached freeze with it in the same
+        /// undo step. Exit doesn't feed `holdTime`, so its edits skip this.
+        func withHoldFollow(_ p: VideoProject, _ change: (VideoAnnotationSegment) -> Void) {
+            guard let s = segment(p) else { return }
+            let oldHold = s.holdTime
+            change(s)
+            document.relocateAnnotationFreeze(in: p, from: oldHold, to: s.holdTime)
+        }
+
+        add(InspectorSectionHeader(L("Entrance")))
+        add(InspectorCard([
+            popup(L("Animation"), entranceLabels,
+                  get: { [unowned self] in animations.firstIndex(of: segment(self.document.project)?.entrance ?? .fade) ?? 0 },
+                  change: [.render, .segments, .timing]) { p, i in
+                withHoldFollow(p) { $0.entrance = animations[i] }
+                segment(p)?.rememberAnimationStyle()
+            },
+            slider(L("Duration"), 0.1...2,
+                   get: { [unowned self] in segment(self.document.project)?.fadeIn ?? VideoAnnotationSegment.defaultEntranceDuration },
+                   format: { String(format: "%.2fs", $0) }, change: [.render, .segments, .timing]) { p, v in
+                withHoldFollow(p) { $0.fadeIn = v }
+                segment(p)?.rememberAnimationStyle()
+            },
+        ]))
+
+        add(InspectorSectionHeader(L("Exit")))
+        add(InspectorCard([
+            popup(L("Animation"), exitLabels,
+                  get: { [unowned self] in animations.firstIndex(of: segment(self.document.project)?.exit ?? .fade) ?? 0 }) { p, i in
+                segment(p)?.exit = animations[i]
+                segment(p)?.rememberAnimationStyle()
+            },
+            slider(L("Duration"), 0.1...2,
+                   get: { [unowned self] in segment(self.document.project)?.fadeOut ?? VideoAnnotationSegment.defaultFade },
+                   format: { String(format: "%.2fs", $0) }) { p, v in
+                segment(p)?.fadeOut = v
+                segment(p)?.rememberAnimationStyle()
+            },
+        ]))
+
+        add(InspectorSectionHeader(L("Timing")))
+        let staggerEnabled = seg.annotations.count >= 2
+        let staggerRow = slider(L("Stagger"), 0...VideoAnnotationSegment.maxStagger,
+               get: { [unowned self] in segment(self.document.project)?.stagger ?? 0 },
+               format: { String(format: "%.2fs", $0) }, change: [.render, .segments, .timing]) { p, v in
+            withHoldFollow(p) { $0.stagger = VideoAnnotationSegment.clampedStagger(v) }
+            segment(p)?.rememberAnimationStyle()
+        }
+        staggerRow.slider.isEnabled = staggerEnabled
+        add(InspectorCard([staggerRow]))
+        if !staggerEnabled {
+            add(note(L("Stagger only applies when the drawing has more than one item.")))
+        }
+        add(note(L("Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in.")))
+
+        let holdRow = InspectorSwitchRow(title: L("Hold video while shown"), isOn: existingFreeze(atHoldOf: seg) != nil) { [weak self] on in
+            self?.setFreeze(forAnnotationID: id, on: on)
+        }
+        holdRow.toggle.isEnabled = !isHoldTimeBlockedByCut(seg)
+        add(holdRow)
+    }
+
+    @objc private func editAnnotationDrawing() {
+        guard case .annotation(let id)? = document.selection else { return }
+        controller?.editAnnotation(id: id)
+    }
+
+    private func existingFreeze(atHoldOf segment: VideoAnnotationSegment) -> VideoFreezeSegment? {
+        document.project.freezes.first { abs($0.atTime - segment.holdTime) <= document.freezeFrameTolerance }
+    }
+
+    private func isHoldTimeBlockedByCut(_ segment: VideoAnnotationSegment) -> Bool {
+        let t = segment.holdTime
+        return document.project.cuts.contains { $0.startTime <= t && t < $0.endTime }
+    }
+
+    /// Adds or removes the freeze that holds the video still while the
+    /// drawing is fully visible. The freeze sits at `holdTime`, not
+    /// `startTime`: the renderer evaluates overlay (and everything else)
+    /// opacity at *source* time, and a freeze holds source time constant —
+    /// parking it at `startTime` would freeze the frame while the drawing is
+    /// still fading in from 0% opacity, which looks like nothing happened.
+    private func setFreeze(forAnnotationID id: UUID, on: Bool) {
+        document.edit([.segments, .render, .timing]) { [weak self] project in
+            guard let self, let seg = project.annotations.first(where: { $0.id == id }) else { return }
+            if on {
+                guard self.existingFreeze(atHoldOf: seg) == nil, !self.isHoldTimeBlockedByCut(seg) else { return }
+                project.freezes.append(VideoFreezeSegment(atTime: seg.holdTime, holdDuration: 2.0))
+            } else {
+                let tolerance = self.document.freezeFrameTolerance
+                project.freezes.removeAll { abs($0.atTime - seg.holdTime) <= tolerance }
+            }
+        }
+        rebuild()
+    }
+
+    // MARK: Overlay (media clip)
+
+    private func buildOverlayPanel(id: UUID) {
+        func segment(_ p: VideoProject) -> VideoOverlaySegment? { p.overlays.first { $0.id == id } }
+        guard let seg = segment(document.project) else { return }
+        let url = document.overlayURL(for: seg)
+        let fileExists = url.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+        if !fileExists {
+            add(note(L("The overlay file is missing. Replace it to bring the overlay back."), symbol: "exclamationmark.triangle"))
+        }
+        add(button(L("Replace Media…"), symbol: "arrow.triangle.2.circlepath", action: #selector(replaceOverlayMediaAction)))
+
+        add(InspectorSectionHeader(L("Media")))
+        var info = [seg.displayName, "\(Int(seg.mediaSize.width.rounded()))×\(Int(seg.mediaSize.height.rounded()))"]
+        if seg.kind == .video { info.append(String(format: "%.1fs", seg.mediaDuration)) }
+        if fileExists, let url, let alpha = mediaHasAlpha(seg, at: url) {
+            info.append(alpha ? L("Transparent") : L("Opaque"))
+        }
+        add(note(info.joined(separator: " · "), symbol: seg.kind == .video ? "film" : "photo"))
+
+        add(InspectorSectionHeader(L("Appearance")))
+        add(InspectorCard([
+            slider(L("Opacity"), 0...1, get: { [unowned self] in segment(self.document.project)?.opacity ?? 1 },
+                   format: { "\(Int(($0 * 100).rounded()))%" }) { p, v in segment(p)?.opacity = v },
+            slider(L("Size"), 0.05...0.95, get: { [unowned self] in Double(segment(self.document.project)?.rect.height ?? 0.3) },
+                   format: { "\(Int(($0 * 100).rounded()))%" }) { p, v in
+                guard let s = segment(p) else { return }
+                let factor = CGFloat(v) / max(0.0001, s.rect.height)
+                s.rect = VideoProjectLimits.normalizedRect(VideoOverlayEditing.scaledRect(s.rect, by: factor))
+            },
+        ]))
+        add(button(L("Reset Size"), symbol: "arrow.counterclockwise", action: #selector(resetOverlaySize)))
+
+        add(InspectorSectionHeader(L("Timing")))
+        add(InspectorCard([
+            slider(L("Fade in"), 0...2, get: { [unowned self] in segment(self.document.project)?.fadeIn ?? 0 },
+                   format: { String(format: "%.2fs", $0) }) { p, v in segment(p)?.fadeIn = v },
+            slider(L("Fade out"), 0...2, get: { [unowned self] in segment(self.document.project)?.fadeOut ?? 0 },
+                   format: { String(format: "%.2fs", $0) }) { p, v in segment(p)?.fadeOut = v },
+        ]))
+    }
+
+    @objc private func replaceOverlayMediaAction() {
+        guard case .overlay(let id)? = document.selection else { return }
+        controller?.replaceOverlayMedia(id: id)
+    }
+
+    @objc private func resetOverlaySize() {
+        guard case .overlay(let id)? = document.selection else { return }
+        let contentSize = document.contentSize
+        document.edit([.render]) { project in
+            guard let seg = project.overlays.first(where: { $0.id == id }) else { return }
+            seg.rect = VideoProjectLimits.normalizedRect(VideoOverlaySegment.defaultRect(mediaSize: seg.mediaSize, contentSize: contentSize))
+        }
+    }
+
+    /// Re-derived on demand rather than persisted: cheap to read from the
+    /// file (image properties, or the video track's format description)
+    /// without decoding pixels, so the info line stays accurate even after a
+    /// "Replace Media…" swap.
+    private func mediaHasAlpha(_ seg: VideoOverlaySegment, at url: URL) -> Bool? {
+        switch seg.kind {
+        case .image:
+            guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+                  let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else { return nil }
+            return VideoOverlayEditing.hasAlpha(imageProperties: props)
+        case .video:
+            guard let track = AVURLAsset(url: url).tracks(withMediaType: .video).first else { return nil }
+            return VideoOverlayEditing.hasAlpha(formatDescriptions: (track.formatDescriptions as? [CMFormatDescription]) ?? [])
+        }
+    }
 }
 
 private final class PopupHandler: NSObject {
@@ -800,6 +1002,40 @@ private final class PopupHandler: NSObject {
     let handler: (Int) -> Void
     init(_ handler: @escaping (Int) -> Void) { self.handler = handler }
     @objc func changed(_ sender: NSPopUpButton) { handler(sender.indexOfSelectedItem) }
+}
+
+/// "Label [popup ▾]" row — title above a full-width popup button, matching
+/// `InspectorSegmentRow`'s layout.
+private final class InspectorPopupRow: NSView {
+    let popupButton = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let handler: PopupHandler
+
+    init(title: String, options: [String], selected: Int, onSelect: @escaping (Int) -> Void) {
+        handler = PopupHandler(onSelect)
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        popupButton.controlSize = .small
+        popupButton.translatesAutoresizingMaskIntoConstraints = false
+        popupButton.addItems(withTitles: options)
+        popupButton.selectItem(at: selected)
+        popupButton.target = handler
+        popupButton.action = #selector(PopupHandler.changed(_:))
+        let label = VideoEditorStyle.label(title, size: 12)
+        addSubview(label)
+        addSubview(popupButton)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: leadingAnchor),
+            label.topAnchor.constraint(equalTo: topAnchor),
+            popupButton.leadingAnchor.constraint(equalTo: leadingAnchor),
+            popupButton.trailingAnchor.constraint(equalTo: trailingAnchor),
+            popupButton.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 6),
+            popupButton.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+
+    func setSelected(_ index: Int) { popupButton.selectItem(at: index) }
+
+    required init?(coder: NSCoder) { fatalError() }
 }
 
 // MARK: - Swatch grid

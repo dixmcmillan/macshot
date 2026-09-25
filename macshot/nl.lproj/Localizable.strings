@@ -854,3 +854,43 @@
 "Zoom out timeline" = "Tijdlijn uitzoomen";
 "macOS" = "macOS";
 "Sway" = "Zwaai";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Annoteren";
+"Annotate Frame" = "Beeld annoteren";
+"Annotation" = "Annotatie";
+"Edit Drawing…" = "Tekening bewerken…";
+"Hold video while shown" = "Video pauzeren zolang deze wordt getoond";
+"Discard Drawing?" = "Tekening verwerpen?";
+"Your drawing will be lost if you close without adding it." = "Je tekening gaat verloren als je sluit zonder deze toe te voegen.";
+"Couldn't capture this frame" = "Kon dit beeld niet vastleggen";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Intrede";
+"Exit" = "Uittrede";
+"Animation" = "Animatie";
+"Timing" = "Timing";
+"Pop" = "Verschijnen";
+"Draw In" = "Intekenen";
+"Draw Out" = "Uittekenen";
+"Slide Up" = "Omhoog schuiven";
+"Slide" = "Schuiven";
+"Wipe" = "Vegen";
+"Stagger" = "Trapsgewijs";
+"Stagger only applies when the drawing has more than one item." = "Trapsgewijs is alleen van toepassing als de tekening meer dan één item bevat.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Intekenen tekent lijnen, pijlen, vrije lijnen en vormcontouren na terwijl ze verschijnen; andere items verschijnen gewoon in één keer.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Overlay…";
+"Overlay" = "Overlay";
+"This project doesn't have a folder to import files into." = "Dit project heeft geen map om bestanden naar te importeren.";
+"Importing overlay..." = "Overlay importeren...";
+"That file couldn't be read as a video or image." = "Dat bestand kon niet worden gelezen als video of afbeelding.";
+"Couldn't copy that file into the project." = "Dat bestand kon niet naar het project worden gekopieerd.";
+"This video has no transparency — it will cover the picture" = "Deze video heeft geen transparantie — hij bedekt het beeld";
+"Replace Media…" = "Media vervangen…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Het overlaybestand ontbreekt. Vervang het om de overlay terug te zetten.";
+"Media" = "Media";
+"Opacity" = "Dekking";
+"Reset Size" = "Grootte herstellen";
+"Opaque" = "Ondoorzichtig";

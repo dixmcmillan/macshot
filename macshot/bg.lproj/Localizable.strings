@@ -852,3 +852,43 @@
 "Zoom out timeline" = "Намаляване на времевата линия";
 "macOS" = "macOS";
 "Sway" = "Люлеене";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Анотиране";
+"Annotate Frame" = "Анотиране на кадър";
+"Annotation" = "Анотация";
+"Edit Drawing…" = "Редактиране на рисунката…";
+"Hold video while shown" = "Задържане на видеото, докато се показва";
+"Discard Drawing?" = "Отхвърляне на рисунката?";
+"Your drawing will be lost if you close without adding it." = "Рисунката ви ще бъде загубена, ако затворите, без да я добавите.";
+"Couldn't capture this frame" = "Кадърът не можа да бъде заснет";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Влизане";
+"Exit" = "Излизане";
+"Animation" = "Анимация";
+"Timing" = "Времетраене";
+"Pop" = "Изскачане";
+"Draw In" = "Очертаване";
+"Draw Out" = "Заличаване";
+"Slide Up" = "Плъзгане нагоре";
+"Slide" = "Плъзгане";
+"Wipe" = "Избърсване";
+"Stagger" = "Изместване";
+"Stagger only applies when the drawing has more than one item." = "Изместването се прилага само когато рисунката съдържа повече от един елемент.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Очертаването проследява линии, стрелки, свободни щрихи и контури на фигури при появата им; останалите елементи просто изскачат.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Наслагване…";
+"Overlay" = "Наслагване";
+"This project doesn't have a folder to import files into." = "Този проект няма папка, в която да се импортират файлове.";
+"Importing overlay..." = "Импортиране на наслагване...";
+"That file couldn't be read as a video or image." = "Файлът не можа да бъде прочетен като видео или изображение.";
+"Couldn't copy that file into the project." = "Файлът не можа да бъде копиран в проекта.";
+"This video has no transparency — it will cover the picture" = "Това видео няма прозрачност — то ще покрие картината";
+"Replace Media…" = "Замяна на медия…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Файлът на наслагването липсва. Заменете го, за да върнете наслагването.";
+"Media" = "Медия";
+"Opacity" = "Непрозрачност";
+"Reset Size" = "Нулиране на размера";
+"Opaque" = "Непрозрачен";

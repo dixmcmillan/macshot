@@ -33,7 +33,9 @@ enum VideoCompositionRendering {
     static func sceneComposition(asset: AVAsset, track: AVAssetTrack, frameDuration: CMTime,
                                  timeMap: [EffectsCompositionInstruction.TimeMapEntry],
                                  scene: VideoSceneSnapshot, censorSegments: [VideoCensorSnapshot],
-                                 textSnapshots: [EffectsCompositionInstruction.TextSnapshot]) throws -> AVMutableVideoComposition {
+                                 textSnapshots: [EffectsCompositionInstruction.TextSnapshot],
+                                 annotationLayers: [EffectsCompositionInstruction.AnnotationLayerSnapshot] = []
+    ) throws -> AVMutableVideoComposition {
         guard let upright = VideoRenderGeometry.layout(sourceSize: track.naturalSize,
                                                        preferredTransform: track.preferredTransform) else {
             throw RenderError.invalidGeometry
@@ -43,7 +45,8 @@ enum VideoCompositionRendering {
             videoTrackID: track.trackID,
             naturalSize: upright.uprightSize, renderSize: scene.layout.canvasSize,
             baseTransform: upright.coreImageTransform, timeMap: timeMap,
-            zoomSegments: [], censorSegments: censorSegments, textSnapshots: textSnapshots, scene: scene)
+            zoomSegments: [], censorSegments: censorSegments, textSnapshots: textSnapshots,
+            annotationLayers: annotationLayers, scene: scene)
         let composition = AVMutableVideoComposition()
         composition.customVideoCompositorClass = EffectsVideoCompositor.self
         composition.instructions = [instruction]

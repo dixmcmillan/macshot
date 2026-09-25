@@ -180,7 +180,7 @@ enum VideoSceneBuilder {
     static func snapshot(project: VideoProject, layout: VideoSceneLayout, recording: CursorRecording?,
                          track: CursorTrack?, assets: Assets, art: VideoSceneArtCache, directory: URL?,
                          drawsCursor: Bool, rendersOverlays: Bool, suspendCamera: Bool,
-                         webcam: VideoWebcamLayer?) -> VideoSceneSnapshot {
+                         webcam: VideoWebcamLayer?, overlays: [VideoOverlayLayer] = []) -> VideoSceneSnapshot {
         let look = project.look
         let (background, foreground) = art.art(layout: layout, frame: look.frame, directory: directory)
         let camera: CameraPath
@@ -215,7 +215,7 @@ enum VideoSceneBuilder {
                                   cameraMotionBlur: CGFloat(look.zoom.motionBlur), cursor: cursorLayer,
                                   keystrokes: keystrokes, keystrokeStyle: look.keystrokes,
                                   captions: project.captions.sorted { $0.startTime < $1.startTime },
-                                  captionStyle: look.captions, webcam: webcam)
+                                  captionStyle: look.captions, webcam: webcam, overlays: overlays)
     }
 
     // MARK: Sprites

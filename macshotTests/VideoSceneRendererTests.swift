@@ -1,3 +1,4 @@
+import AppKit
 import CoreImage
 import XCTest
 
@@ -101,6 +102,126 @@ final class VideoSceneRendererTests: XCTestCase {
                                               censors: [VideoCensorSnapshot(segment)], texts: [])
         assertColor(pixel(image, 300, 100), 0, 0, 0)
         assertColor(pixel(image, 100, 100), 255, 0, 0)
+    }
+
+    /// Builds the single `AnnotationLayerSnapshot` for one annotation drawn
+    /// alone in a segment. Defaults to entrance/exit `.none` so it's simply
+    /// on or off — most placement tests don't care about the animation
+    /// curves; animation tests pass `fadeIn`/`entrance`/`exit` explicitly.
+    @MainActor
+    private func annotationLayer(_ annotation: Annotation, layout: VideoSceneLayout, start: Double = 1, end: Double = 4,
+                                 fadeIn: Double = 0, fadeOut: Double = 0,
+                                 entrance: VideoAnnotationSegment.Animation = .none,
+                                 exit: VideoAnnotationSegment.Animation = .none) throws -> EffectsCompositionInstruction.AnnotationLayerSnapshot {
+        let segment = VideoAnnotationSegment(startTime: start, endTime: end, canvasSize: contentSize,
+                                             annotationData: try XCTUnwrap(AnnotationSerializer.encode([annotation])),
+                                             fadeIn: fadeIn, fadeOut: fadeOut, entrance: entrance, exit: exit)
+        let full = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let spec = VideoAnnotationRasterizer.spec(for: segment, pixelSize: layout.canvasRect(forContent: full).size)
+        let rendered = try XCTUnwrap(VideoAnnotationRasterizer.render(segment, spec))
+        let layer = try XCTUnwrap(rendered.layers.first)
+        return EffectsCompositionInstruction.AnnotationLayerSnapshot(
+            segmentID: segment.id, startTime: start, endTime: end, rect: layer.contentRect,
+            image: CIImage(cgImage: layer.image), layerIndex: 0, fadeIn: fadeIn, fadeOut: fadeOut,
+            entrance: entrance, exit: exit, stagger: 0, reveal: layer.reveal)
+    }
+
+    /// A drawing made over the paused frame lands on the same spot of the
+    /// rendered video, and only while its segment is on screen.
+    @MainActor
+    func testAnnotationDrawingLandsWhereItWasDrawn() throws {
+        let layout = layout(enabled: false)
+        // Canvas matches the content aspect; AppKit bottom-left origin, so
+        // y 150…200 is the top edge — the same corner as the blue marker.
+        let square = Annotation(tool: .filledRectangle, startPoint: NSPoint(x: 350, y: 150),
+                                endPoint: NSPoint(x: 400, y: 200),
+                                color: NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1), strokeWidth: 2)
+        let layer = try annotationLayer(square, layout: layout)
+
+        let shown = VideoSceneRenderer.render(content: content, time: 2, scene: scene(layout), censors: [], texts: [],
+                                              annotationLayers: [layer])
+        assertColor(pixel(shown, 390, 10), 0, 255, 0)
+        assertColor(pixel(shown, 10, 10), 0, 0, 255)
+        assertColor(pixel(shown, 390, 190), 255, 0, 0)
+
+        let hidden = VideoSceneRenderer.render(content: content, time: 5, scene: scene(layout), censors: [], texts: [],
+                                               annotationLayers: [layer])
+        assertColor(pixel(hidden, 390, 10), 255, 0, 0)
+    }
+
+    /// A `draw` entrance reveals an arrow from its tail: at 50% only the
+    /// half nearer the start point is visible.
+    @MainActor
+    func testDrawEntranceRevealsArrowFromItsStart() throws {
+        let layout = layout(enabled: false)
+        let arrow = Annotation(tool: .arrow, startPoint: NSPoint(x: 20, y: 100), endPoint: NSPoint(x: 380, y: 100),
+                               color: NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1), strokeWidth: 3)
+        // fadeIn = 1s over a 0…4s segment (no clamping): sampling at half
+        // that (t=0.5) lands exactly on the easeInOut curve's midpoint,
+        // where progress == shownness == 0.5 — half the arc length drawn.
+        let layer = try annotationLayer(arrow, layout: layout, start: 0, end: 4, fadeIn: 1, entrance: .draw, exit: .none)
+        let image = VideoSceneRenderer.render(content: content, time: 0.5, scene: scene(layout), censors: [], texts: [],
+                                              annotationLayers: [layer])
+        assertColor(pixel(image, 60, 100), 0, 255, 0)
+        assertColor(pixel(image, 340, 100), 255, 0, 0)
+    }
+
+    /// A `draw` entrance on an ellipse sweeps a wedge clockwise from 12
+    /// o'clock: at the halfway point the wedge has swept through 3 o'clock
+    /// to 6 o'clock, covering the whole right side but none of the left.
+    @MainActor
+    func testDrawEntranceSweepsEllipseClockwiseFromTop() throws {
+        let layout = layout(enabled: false)
+        let ellipse = Annotation(tool: .ellipse, startPoint: NSPoint(x: 100, y: 20), endPoint: NSPoint(x: 300, y: 180),
+                                 color: NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1), strokeWidth: 6)
+        ellipse.rectFillStyle = .fill
+        let layer = try annotationLayer(ellipse, layout: layout, start: 0, end: 4, fadeIn: 1, entrance: .draw, exit: .none)
+        let image = VideoSceneRenderer.render(content: content, time: 0.5, scene: scene(layout), censors: [], texts: [],
+                                              annotationLayers: [layer])
+        // Points 60/40 canvas-points off the ellipse's (200, 100) center,
+        // well inside its fill. `pixel()` measures from the top of the
+        // frame, so a canvas y of 140 (above center, AppKit bottom-left) is
+        // `200 - 140 = 60` from the top. Top-right and bottom-right (the
+        // swept right half) are revealed; top-left and bottom-left
+        // (not yet swept) stay background.
+        assertColor(pixel(image, 260, 60), 0, 255, 0)
+        assertColor(pixel(image, 260, 140), 0, 255, 0)
+        assertColor(pixel(image, 140, 60), 255, 0, 0)
+        assertColor(pixel(image, 140, 140), 255, 0, 0)
+    }
+
+    /// `pop` scales up from small; mid-entrance is visibly smaller than the
+    /// fully-entered size.
+    @MainActor
+    func testPopEntranceIsSmallerMidway() throws {
+        let layout = layout(enabled: false)
+        let square = Annotation(tool: .filledRectangle, startPoint: NSPoint(x: 150, y: 50),
+                                endPoint: NSPoint(x: 250, y: 150),
+                                color: NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1), strokeWidth: 2)
+        // fadeIn = 1s over 0…4s: sample at 20% of the entrance (s = 0.2,
+        // still well before the overshoot peak) — scale is visibly < 1, so
+        // pixels near the square's own edge (but outside its shrunk size)
+        // stay background-colored, while the untouched center still shows.
+        let segment = VideoAnnotationSegment(startTime: 0, endTime: 4, canvasSize: contentSize,
+                                             annotationData: try XCTUnwrap(AnnotationSerializer.encode([square])),
+                                             fadeIn: 1, fadeOut: 0, entrance: .pop, exit: .none)
+        let full = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let spec = VideoAnnotationRasterizer.spec(for: segment, pixelSize: layout.canvasRect(forContent: full).size)
+        let rendered = try XCTUnwrap(VideoAnnotationRasterizer.render(segment, spec))
+        let raw = try XCTUnwrap(rendered.layers.first)
+        let layer = EffectsCompositionInstruction.AnnotationLayerSnapshot(
+            segmentID: segment.id, startTime: 0, endTime: 4, rect: raw.contentRect,
+            image: CIImage(cgImage: raw.image), layerIndex: 0, fadeIn: 1, fadeOut: 0,
+            entrance: .pop, exit: .none, stagger: 0, reveal: raw.reveal)
+        // t = 0.2 → s = 0.2 (20% into the 1s fadeIn).
+        let midway = VideoSceneRenderer.render(content: content, time: 0.2, scene: scene(layout), censors: [], texts: [],
+                                               annotationLayers: [layer])
+        let full1 = VideoSceneRenderer.render(content: content, time: 4, scene: scene(layout), censors: [], texts: [],
+                                              annotationLayers: [layer])
+        // Just inside the square's original top-right corner: fully shown
+        // once entered, still background while shrunk around its center.
+        assertColor(pixel(full1, 245, 55), 0, 255, 0)
+        assertColor(pixel(midway, 245, 55), 255, 0, 0)
     }
 
     func testCursorIsDrawnAtItsHotspotAndHonorsVisibility() {

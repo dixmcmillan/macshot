@@ -854,3 +854,43 @@
 "Zoom out timeline" = "Σμίκρυνση λωρίδας χρόνου";
 "macOS" = "macOS";
 "Sway" = "Ταλάντευση";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Σχολιασμός";
+"Annotate Frame" = "Σχολιασμός καρέ";
+"Annotation" = "Σχόλιο";
+"Edit Drawing…" = "Επεξεργασία σχεδίου…";
+"Hold video while shown" = "Πάγωμα βίντεο όσο εμφανίζεται";
+"Discard Drawing?" = "Απόρριψη σχεδίου;";
+"Your drawing will be lost if you close without adding it." = "Το σχέδιό σας θα χαθεί αν κλείσετε χωρίς να το προσθέσετε.";
+"Couldn't capture this frame" = "Δεν ήταν δυνατή η λήψη αυτού του καρέ";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Είσοδος";
+"Exit" = "Έξοδος";
+"Animation" = "Κίνηση";
+"Timing" = "Χρονισμός";
+"Pop" = "Απότομη εμφάνιση";
+"Draw In" = "Σχεδίαση εισόδου";
+"Draw Out" = "Σχεδίαση εξόδου";
+"Slide Up" = "Ολίσθηση προς τα πάνω";
+"Slide" = "Ολίσθηση";
+"Wipe" = "Σάρωση";
+"Stagger" = "Διαδοχή";
+"Stagger only applies when the drawing has more than one item." = "Η διαδοχή ισχύει μόνο όταν το σχέδιο περιέχει περισσότερα από ένα στοιχεία.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Η σχεδίαση εισόδου ιχνηλατεί γραμμές, βέλη, ελεύθερες πινελιές και περιγράμματα σχημάτων καθώς εμφανίζονται· τα υπόλοιπα στοιχεία απλώς εμφανίζονται απότομα.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Επικάλυψη…";
+"Overlay" = "Επικάλυψη";
+"This project doesn't have a folder to import files into." = "Αυτό το έργο δεν έχει φάκελο για εισαγωγή αρχείων.";
+"Importing overlay..." = "Εισαγωγή επικάλυψης...";
+"That file couldn't be read as a video or image." = "Αυτό το αρχείο δεν ήταν δυνατό να διαβαστεί ως βίντεο ή εικόνα.";
+"Couldn't copy that file into the project." = "Δεν ήταν δυνατή η αντιγραφή αυτού του αρχείου στο έργο.";
+"This video has no transparency — it will cover the picture" = "Αυτό το βίντεο δεν έχει διαφάνεια — θα καλύψει την εικόνα";
+"Replace Media…" = "Αντικατάσταση πολυμέσου…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Το αρχείο της επικάλυψης λείπει. Αντικαταστήστε το για να επαναφέρετε την επικάλυψη.";
+"Media" = "Πολυμέσο";
+"Opacity" = "Αδιαφάνεια";
+"Reset Size" = "Επαναφορά μεγέθους";
+"Opaque" = "Αδιαφανές";

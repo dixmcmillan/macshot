@@ -853,3 +853,43 @@
 "Zoom out timeline" = "Zoom out timeline";
 "macOS" = "macOS";
 "Sway" = "Sway";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Annotate";
+"Annotate Frame" = "Annotate Frame";
+"Annotation" = "Annotation";
+"Edit Drawing…" = "Edit Drawing…";
+"Hold video while shown" = "Hold video while shown";
+"Discard Drawing?" = "Discard Drawing?";
+"Your drawing will be lost if you close without adding it." = "Your drawing will be lost if you close without adding it.";
+"Couldn't capture this frame" = "Couldn't capture this frame";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Entrance";
+"Exit" = "Exit";
+"Animation" = "Animation";
+"Timing" = "Timing";
+"Pop" = "Pop";
+"Draw In" = "Draw In";
+"Draw Out" = "Draw Out";
+"Slide Up" = "Slide Up";
+"Slide" = "Slide";
+"Wipe" = "Wipe";
+"Stagger" = "Stagger";
+"Stagger only applies when the drawing has more than one item." = "Stagger only applies when the drawing has more than one item.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Overlay…";
+"Overlay" = "Overlay";
+"This project doesn't have a folder to import files into." = "This project doesn't have a folder to import files into.";
+"Importing overlay..." = "Importing overlay...";
+"That file couldn't be read as a video or image." = "That file couldn't be read as a video or image.";
+"Couldn't copy that file into the project." = "Couldn't copy that file into the project.";
+"This video has no transparency — it will cover the picture" = "This video has no transparency — it will cover the picture";
+"Replace Media…" = "Replace Media…";
+"The overlay file is missing. Replace it to bring the overlay back." = "The overlay file is missing. Replace it to bring the overlay back.";
+"Media" = "Media";
+"Opacity" = "Opacity";
+"Reset Size" = "Reset Size";
+"Opaque" = "Opaque";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in.";

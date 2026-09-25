@@ -854,3 +854,43 @@
 "Zoom out timeline" = "타임라인 축소";
 "macOS" = "macOS";
 "Sway" = "흔들림";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "주석 달기";
+"Annotate Frame" = "프레임에 주석 달기";
+"Annotation" = "주석";
+"Edit Drawing…" = "그림 편집…";
+"Hold video while shown" = "표시되는 동안 동영상 정지";
+"Discard Drawing?" = "그림을 버릴까요?";
+"Your drawing will be lost if you close without adding it." = "추가하지 않고 닫으면 그림이 사라집니다.";
+"Couldn't capture this frame" = "이 프레임을 캡처할 수 없습니다";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "등장";
+"Exit" = "퇴장";
+"Animation" = "애니메이션";
+"Timing" = "타이밍";
+"Pop" = "팝";
+"Draw In" = "드로우 인";
+"Draw Out" = "드로우 아웃";
+"Slide Up" = "슬라이드 업";
+"Slide" = "슬라이드";
+"Wipe" = "와이프";
+"Stagger" = "순차 지연";
+"Stagger only applies when the drawing has more than one item." = "순차 지연은 드로잉에 항목이 두 개 이상일 때만 적용됩니다.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "드로우 인은 선, 화살표, 프리핸드 획, 도형 윤곽선이 나타날 때 그려지는 효과이며, 나머지 항목은 그냥 팝업으로 나타납니다.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "오버레이…";
+"Overlay" = "오버레이";
+"This project doesn't have a folder to import files into." = "이 프로젝트에는 파일을 가져올 폴더가 없습니다.";
+"Importing overlay..." = "오버레이 가져오는 중...";
+"That file couldn't be read as a video or image." = "해당 파일을 동영상이나 이미지로 읽을 수 없습니다.";
+"Couldn't copy that file into the project." = "해당 파일을 프로젝트에 복사할 수 없습니다.";
+"This video has no transparency — it will cover the picture" = "이 동영상에는 투명도가 없습니다 — 화면을 가리게 됩니다";
+"Replace Media…" = "미디어 교체…";
+"The overlay file is missing. Replace it to bring the overlay back." = "오버레이 파일이 없습니다. 교체하면 오버레이가 복원됩니다.";
+"Media" = "미디어";
+"Opacity" = "불투명도";
+"Reset Size" = "크기 재설정";
+"Opaque" = "불투명";

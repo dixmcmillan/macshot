@@ -536,6 +536,130 @@ class Annotation {
         return length
     }
 
+    // MARK: - Video "draw" reveal geometry
+
+    /// Shape a video annotation segment's `draw` entrance/exit animation
+    /// traces for this annotation, in this annotation's own canvas points
+    /// (bottom-left origin — the same space `draw(in:)` renders in). `nil`
+    /// for tools with nothing to trace; the video renderer falls back to a
+    /// `pop` entrance/exit for those instead of `draw`.
+    enum RevealGeometry {
+        /// Ordered path the reveal mask strokes, start → head, plus the
+        /// stroke width the mask needs to fully cover the drawn shape
+        /// (including an arrow's head, which is wider than its shaft).
+        case path(points: [NSPoint], width: CGFloat)
+        /// Ellipse/outlined-or-filled rectangle: a pie-wedge sweep from 12
+        /// o'clock, clockwise, centered here. `rotation` matches the
+        /// annotation's own rotation (radians) so the wedge's "up" tracks
+        /// the shape's own top, not the canvas's.
+        case sweep(center: NSPoint, rotation: CGFloat)
+    }
+
+    var revealGeometry: RevealGeometry? {
+        switch tool {
+        case .measure:
+            guard hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y) > 0.01 else { return nil }
+            return .path(points: [startPoint, endPoint], width: 3 + 4)
+
+        case .line:
+            let pts = linePathSamples()
+            guard pts.count >= 2 else { return nil }
+            return .path(points: pts, width: max(strokeWidth, 3) + 4)
+
+        case .arrow:
+            let pts = linePathSamples()
+            guard pts.count >= 2 else { return nil }
+            let ordered = arrowReversed ? Array(pts.reversed()) : pts
+            switch arrowStyle {
+            case .thick, .sketchy:
+                // Different shape pipelines (drawThickArrow/drawSketchyArrow)
+                // — trace the same shaft path with a generous width instead
+                // of reproducing their exact silhouette.
+                return .path(points: ordered, width: max(strokeWidth * 6, 16))
+            case .single, .double, .open, .tail:
+                let totalLen = Annotation.polylineLength(ordered)
+                // Mirrors drawArrow()'s own head-length formula so the mask
+                // is wide enough to cover the arrowhead without clipping it.
+                let headSpan = min(max(14, strokeWidth * 5), max(4, totalLen * 0.45))
+                return .path(points: ordered, width: max(strokeWidth, headSpan) + 4)
+            }
+
+        case .pencil, .marker:
+            guard let points, !points.isEmpty else { return nil }
+            // Marker draws at 6x strokeWidth (see `drawFreeform`'s marker
+            // call) — use the actually-drawn width so the reveal mask covers
+            // the wide highlighter stroke, not just its nominal thickness.
+            let drawnWidth = tool == .marker ? strokeWidth * 6 : strokeWidth
+            let width = drawnWidth * 1.5 + 4
+            return points.count == 1 ? .path(points: [points[0], points[0]], width: width) : .path(points: points, width: width)
+
+        case .rectangle, .ellipse:
+            let r = boundingRect
+            guard r.width > 0.5, r.height > 0.5 else { return nil }
+            return .sweep(center: NSPoint(x: r.midX, y: r.midY), rotation: supportsRotation ? rotation : 0)
+
+        default:
+            // filledRectangle, text, number, stamp, highlight, pixelate,
+            // blur, loupe, … — nothing to trace; the caller pops instead.
+            return nil
+        }
+    }
+
+    /// Ordered points for the straight/bend/multi-anchor line or arrow
+    /// shaft, matching `drawStraightLine`/`drawArrow`'s own path construction.
+    private func linePathSamples() -> [NSPoint] {
+        if hasMultiAnchor { return Annotation.smoothSamples(through: waypoints) }
+        if let cp = controlPoint { return Annotation.bendSamples(from: startPoint, control: cp, to: endPoint) }
+        return [startPoint, endPoint]
+    }
+
+    /// Sample the same curve `drawStraightLine`/`drawArrow` render through
+    /// `pts` via `smoothPath`: straight for 2 points, Catmull-Rom for 3+.
+    static func smoothSamples(through pts: [NSPoint], perSegment: Int = 24) -> [NSPoint] {
+        guard pts.count >= 2 else { return pts }
+        if pts.count == 2 { return pts }
+        var result: [NSPoint] = [pts[0]]
+        for i in 0..<(pts.count - 1) {
+            let p0 = i > 0 ? pts[i - 1] : pts[i]
+            let p1 = pts[i]
+            let p2 = pts[i + 1]
+            let p3 = i + 2 < pts.count ? pts[i + 2] : pts[i + 1]
+            let cp1 = NSPoint(x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6)
+            let cp2 = NSPoint(x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6)
+            for s in 1...perSegment {
+                let t = CGFloat(s) / CGFloat(perSegment)
+                let u = 1 - t
+                let x = u*u*u*p1.x + 3*u*u*t*cp1.x + 3*u*t*t*cp2.x + t*t*t*p2.x
+                let y = u*u*u*p1.y + 3*u*u*t*cp1.y + 3*u*t*t*cp2.y + t*t*t*p2.y
+                result.append(NSPoint(x: x, y: y))
+            }
+        }
+        return result
+    }
+
+    /// Sample a single cubic bend where `controlPoint1 == controlPoint2`,
+    /// matching the legacy single-bend line/arrow curve (`path.curve(to:
+    /// controlPoint1: cp, controlPoint2: cp)`).
+    static func bendSamples(from a: NSPoint, control c: NSPoint, to b: NSPoint, samples: Int = 24) -> [NSPoint] {
+        var result: [NSPoint] = []
+        for s in 0...samples {
+            let t = CGFloat(s) / CGFloat(samples)
+            let u = 1 - t
+            let x = u*u*u*a.x + 3*u*u*t*c.x + 3*u*t*t*c.x + t*t*t*b.x
+            let y = u*u*u*a.y + 3*u*u*t*c.y + 3*u*t*t*c.y + t*t*t*b.y
+            result.append(NSPoint(x: x, y: y))
+        }
+        return result
+    }
+
+    /// Total length of the polyline through `pts`.
+    static func polylineLength(_ pts: [NSPoint]) -> CGFloat {
+        guard pts.count >= 2 else { return 0 }
+        var length: CGFloat = 0
+        for i in 1..<pts.count { length += hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y) }
+        return length
+    }
+
     private func distanceToQuadCurve(point: NSPoint, from a: NSPoint, control c: NSPoint, to b: NSPoint) -> CGFloat {
         // The curve is drawn as a cubic bezier with cp1 == cp2 == c (NSBezierPath.curve),
         // so sample the cubic formula to match the actual rendered path.

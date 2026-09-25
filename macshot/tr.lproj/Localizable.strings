@@ -854,3 +854,43 @@
 "Zoom out timeline" = "Zaman çizelgesini uzaklaştır";
 "macOS" = "macOS";
 "Sway" = "Salınım";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Not Ekle";
+"Annotate Frame" = "Kareye Not Ekle";
+"Annotation" = "Not";
+"Edit Drawing…" = "Çizimi Düzenle…";
+"Hold video while shown" = "Gösterilirken videoyu durdur";
+"Discard Drawing?" = "Çizim silinsin mi?";
+"Your drawing will be lost if you close without adding it." = "Eklemeden kapatırsanız çiziminiz kaybolur.";
+"Couldn't capture this frame" = "Bu kare yakalanamadı";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Giriş";
+"Exit" = "Çıkış";
+"Animation" = "Animasyon";
+"Timing" = "Zamanlama";
+"Pop" = "Ani belirme";
+"Draw In" = "Çizim girişi";
+"Draw Out" = "Çizim çıkışı";
+"Slide Up" = "Yukarı kayma";
+"Slide" = "Kayma";
+"Wipe" = "Silme";
+"Stagger" = "Kademeli gecikme";
+"Stagger only applies when the drawing has more than one item." = "Kademeli gecikme yalnızca çizimde birden fazla öğe olduğunda uygulanır.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Çizim girişi, öğeler girerken çizgileri, okları, serbest el çizimlerini ve şekil ana hatlarını çizerek gösterir; diğer öğeler ise aniden belirir.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Katman…";
+"Overlay" = "Katman";
+"This project doesn't have a folder to import files into." = "Bu projede dosya içe aktarılacak bir klasör yok.";
+"Importing overlay..." = "Katman içe aktarılıyor...";
+"That file couldn't be read as a video or image." = "Bu dosya video veya görüntü olarak okunamadı.";
+"Couldn't copy that file into the project." = "Bu dosya projeye kopyalanamadı.";
+"This video has no transparency — it will cover the picture" = "Bu videoda saydamlık yok — görüntünün üzerini kapatacak";
+"Replace Media…" = "Medyayı Değiştir…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Katman dosyası eksik. Katmanı geri getirmek için değiştirin.";
+"Media" = "Medya";
+"Opacity" = "Opaklık";
+"Reset Size" = "Boyutu Sıfırla";
+"Opaque" = "Opak";

@@ -852,3 +852,43 @@
 "Zoom out timeline" = "Thu nhỏ dòng thời gian";
 "macOS" = "macOS";
 "Sway" = "Lắc lư";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Chú thích";
+"Annotate Frame" = "Chú thích khung hình";
+"Annotation" = "Chú thích";
+"Edit Drawing…" = "Sửa hình vẽ…";
+"Hold video while shown" = "Tạm dừng video trong khi hiển thị";
+"Discard Drawing?" = "Bỏ hình vẽ?";
+"Your drawing will be lost if you close without adding it." = "Hình vẽ của bạn sẽ mất nếu bạn đóng mà không thêm vào.";
+"Couldn't capture this frame" = "Không thể chụp khung hình này";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Vào";
+"Exit" = "Ra";
+"Animation" = "Hoạt ảnh";
+"Timing" = "Thời gian";
+"Pop" = "Hiện ngay";
+"Draw In" = "Vẽ vào";
+"Draw Out" = "Vẽ ra";
+"Slide Up" = "Trượt lên";
+"Slide" = "Trượt";
+"Wipe" = "Quét";
+"Stagger" = "Trễ lần lượt";
+"Stagger only applies when the drawing has more than one item." = "Trễ lần lượt chỉ áp dụng khi bản vẽ có nhiều hơn một mục.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Vẽ vào sẽ vẽ theo nét các đường thẳng, mũi tên, nét vẽ tay tự do và đường viền hình dạng khi chúng xuất hiện; các mục khác chỉ hiện ngay lập tức.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Lớp phủ…";
+"Overlay" = "Lớp phủ";
+"This project doesn't have a folder to import files into." = "Dự án này không có thư mục để nhập tệp vào.";
+"Importing overlay..." = "Đang nhập lớp phủ...";
+"That file couldn't be read as a video or image." = "Không thể đọc tệp đó dưới dạng video hoặc hình ảnh.";
+"Couldn't copy that file into the project." = "Không thể sao chép tệp đó vào dự án.";
+"This video has no transparency — it will cover the picture" = "Video này không có độ trong suốt — nó sẽ che khuất hình ảnh";
+"Replace Media…" = "Thay thế phương tiện…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Thiếu tệp lớp phủ. Hãy thay thế để khôi phục lớp phủ.";
+"Media" = "Phương tiện";
+"Opacity" = "Độ đục";
+"Reset Size" = "Đặt lại kích thước";
+"Opaque" = "Đục";

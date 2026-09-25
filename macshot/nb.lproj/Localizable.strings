@@ -852,3 +852,43 @@
 "Zoom out timeline" = "Zoom ut på tidslinjen";
 "macOS" = "macOS";
 "Sway" = "Svai";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Kommenter";
+"Annotate Frame" = "Kommenter bilde";
+"Annotation" = "Kommentar";
+"Edit Drawing…" = "Rediger tegning…";
+"Hold video while shown" = "Sett video på pause mens den vises";
+"Discard Drawing?" = "Forkast tegningen?";
+"Your drawing will be lost if you close without adding it." = "Tegningen din går tapt hvis du lukker uten å legge den til.";
+"Couldn't capture this frame" = "Kunne ikke fange dette bildet";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Inngang";
+"Exit" = "Utgang";
+"Animation" = "Animasjon";
+"Timing" = "Timing";
+"Pop" = "Sprett inn";
+"Draw In" = "Tegn inn";
+"Draw Out" = "Tegn ut";
+"Slide Up" = "Skli opp";
+"Slide" = "Skli";
+"Wipe" = "Feiing";
+"Stagger" = "Forskyvning";
+"Stagger only applies when the drawing has more than one item." = "Forskyvning gjelder bare når tegningen har mer enn ett element.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Tegn inn tegner opp streker, piler, frihåndsstrøk og formkonturer etter hvert som de kommer inn. Andre elementer bare spretter inn.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Overlegg…";
+"Overlay" = "Overlegg";
+"This project doesn't have a folder to import files into." = "Dette prosjektet har ingen mappe å importere filer til.";
+"Importing overlay..." = "Importerer overlegg...";
+"That file couldn't be read as a video or image." = "Filen kunne ikke leses som video eller bilde.";
+"Couldn't copy that file into the project." = "Filen kunne ikke kopieres inn i prosjektet.";
+"This video has no transparency — it will cover the picture" = "Denne videoen har ingen gjennomsiktighet — den vil dekke bildet";
+"Replace Media…" = "Erstatt medie…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Overleggsfilen mangler. Erstatt den for å gjenopprette overlegget.";
+"Media" = "Medie";
+"Opacity" = "Ugjennomsiktighet";
+"Reset Size" = "Tilbakestill størrelse";
+"Opaque" = "Ugjennomsiktig";

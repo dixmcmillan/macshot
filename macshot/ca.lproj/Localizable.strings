@@ -854,3 +854,43 @@
 "Zoom out timeline" = "Allunyar la línia de temps";
 "macOS" = "macOS";
 "Sway" = "Balanceig";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Anotar";
+"Annotate Frame" = "Anotar fotograma";
+"Annotation" = "Anotació";
+"Edit Drawing…" = "Editar el dibuix…";
+"Hold video while shown" = "Aturar el vídeo mentre es mostra";
+"Discard Drawing?" = "Descartar el dibuix?";
+"Your drawing will be lost if you close without adding it." = "El dibuix es perdrà si tanques sense afegir-lo.";
+"Couldn't capture this frame" = "No s'ha pogut capturar aquest fotograma";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Entrada";
+"Exit" = "Sortida";
+"Animation" = "Animació";
+"Timing" = "Temporització";
+"Pop" = "Aparició sobtada";
+"Draw In" = "Traçat d'entrada";
+"Draw Out" = "Traçat de sortida";
+"Slide Up" = "Lliscament amunt";
+"Slide" = "Lliscament";
+"Wipe" = "Escombratge";
+"Stagger" = "Esglaonament";
+"Stagger only applies when the drawing has more than one item." = "L'esglaonament només s'aplica quan el dibuix té més d'un element.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "El traçat d'entrada dibuixa línies, fletxes, traços a mà alçada i contorns de formes a mesura que apareixen; la resta d'elements simplement apareixen de sobte.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Superposició…";
+"Overlay" = "Superposició";
+"This project doesn't have a folder to import files into." = "Aquest projecte no té cap carpeta on importar fitxers.";
+"Importing overlay..." = "Important superposició...";
+"That file couldn't be read as a video or image." = "Aquest fitxer no s'ha pogut llegir com a vídeo o imatge.";
+"Couldn't copy that file into the project." = "No s'ha pogut copiar aquest fitxer al projecte.";
+"This video has no transparency — it will cover the picture" = "Aquest vídeo no té transparència: cobrirà la imatge";
+"Replace Media…" = "Substitueix el contingut…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Falta el fitxer de la superposició. Substitueix-lo per recuperar la superposició.";
+"Media" = "Multimèdia";
+"Opacity" = "Opacitat";
+"Reset Size" = "Restableix la mida";
+"Opaque" = "Opac";

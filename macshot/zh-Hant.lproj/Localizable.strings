@@ -854,3 +854,43 @@
 "Zoom out timeline" = "縮小時間軸";
 "macOS" = "macOS";
 "Sway" = "擺動";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "標註";
+"Annotate Frame" = "為畫面加上標註";
+"Annotation" = "標註";
+"Edit Drawing…" = "編輯繪圖…";
+"Hold video while shown" = "顯示期間暫停影片";
+"Discard Drawing?" = "捨棄繪圖？";
+"Your drawing will be lost if you close without adding it." = "如果未新增就關閉，繪圖將會遺失。";
+"Couldn't capture this frame" = "無法擷取此畫面";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "進入";
+"Exit" = "退出";
+"Animation" = "動畫";
+"Timing" = "計時";
+"Pop" = "彈出";
+"Draw In" = "繪入";
+"Draw Out" = "繪出";
+"Slide Up" = "上滑";
+"Slide" = "滑動";
+"Wipe" = "擦除";
+"Stagger" = "錯開";
+"Stagger only applies when the drawing has more than one item." = "僅當繪圖包含多個項目時，錯開效果才會套用。";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "繪入會在線條、箭頭、手繪筆觸和形狀輪廓出現時進行描邊動畫；其他項目則直接彈出。";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "疊加層…";
+"Overlay" = "疊加層";
+"This project doesn't have a folder to import files into." = "此專案沒有可用來匯入檔案的資料夾。";
+"Importing overlay..." = "正在匯入疊加層...";
+"That file couldn't be read as a video or image." = "無法將該檔案讀取為影片或圖片。";
+"Couldn't copy that file into the project." = "無法將該檔案複製到專案中。";
+"This video has no transparency — it will cover the picture" = "此影片沒有透明度 — 它會遮住畫面";
+"Replace Media…" = "取代媒體…";
+"The overlay file is missing. Replace it to bring the overlay back." = "疊加層檔案遺失。取代它以還原疊加層。";
+"Media" = "媒體";
+"Opacity" = "不透明度";
+"Reset Size" = "重設大小";
+"Opaque" = "不透明";

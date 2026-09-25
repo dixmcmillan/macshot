@@ -852,3 +852,43 @@
 "Zoom out timeline" = "Oddálit časovou osu";
 "macOS" = "macOS";
 "Sway" = "Kývání";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Anotovat";
+"Annotate Frame" = "Anotovat snímek";
+"Annotation" = "Anotace";
+"Edit Drawing…" = "Upravit kresbu…";
+"Hold video while shown" = "Zastavit video po dobu zobrazení";
+"Discard Drawing?" = "Zahodit kresbu?";
+"Your drawing will be lost if you close without adding it." = "Pokud zavřete bez přidání, kresba se ztratí.";
+"Couldn't capture this frame" = "Tento snímek se nepodařilo zachytit";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Vstup";
+"Exit" = "Výstup";
+"Animation" = "Animace";
+"Timing" = "Časování";
+"Pop" = "Objevení";
+"Draw In" = "Vykreslení";
+"Draw Out" = "Odkreslení";
+"Slide Up" = "Posun nahoru";
+"Slide" = "Posun";
+"Wipe" = "Stírání";
+"Stagger" = "Rozestup";
+"Stagger only applies when the drawing has more than one item." = "Rozestup se použije, jen když kresba obsahuje více než jednu položku.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Vykreslení postupně obtáhne čáry, šipky, kresby od ruky a obrysy tvarů při jejich objevení; ostatní položky se jen objeví.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Překryv…";
+"Overlay" = "Překryv";
+"This project doesn't have a folder to import files into." = "Tento projekt nemá složku pro import souborů.";
+"Importing overlay..." = "Importuje se překryv...";
+"That file couldn't be read as a video or image." = "Tento soubor se nepodařilo přečíst jako video nebo obrázek.";
+"Couldn't copy that file into the project." = "Tento soubor se nepodařilo zkopírovat do projektu.";
+"This video has no transparency — it will cover the picture" = "Toto video nemá průhlednost — překryje obraz";
+"Replace Media…" = "Nahradit médium…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Soubor překryvu chybí. Nahraďte jej, aby se překryv obnovil.";
+"Media" = "Médium";
+"Opacity" = "Krytí";
+"Reset Size" = "Obnovit velikost";
+"Opaque" = "Neprůhledné";

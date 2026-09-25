@@ -44,10 +44,12 @@ final class EffectsCompositionInstruction: NSObject, AVVideoCompositionInstructi
     let enablePostProcessing: Bool = false
     let containsTweening: Bool = true
     var requiredSourceTrackIDs: [NSValue]? {
-        if let webcamTrackID = scene?.webcam?.trackID {
-            return [NSNumber(value: videoTrackID), NSNumber(value: webcamTrackID)]
+        var ids = [NSNumber(value: videoTrackID)]
+        if let webcamTrackID = scene?.webcam?.trackID { ids.append(NSNumber(value: webcamTrackID)) }
+        for overlay in scene?.overlays ?? [] {
+            if let trackID = overlay.trackID { ids.append(NSNumber(value: trackID)) }
         }
-        return [NSNumber(value: videoTrackID)]
+        return ids
     }
     let passthroughTrackID: CMPersistentTrackID = kCMPersistentTrackID_Invalid
 
@@ -64,6 +66,8 @@ final class EffectsCompositionInstruction: NSObject, AVVideoCompositionInstructi
     /// shaping or NSAttributedString work — we just composite the cached
     /// image. Built on the main actor at snapshot time and never mutated.
     let textSnapshots: [TextSnapshot]
+    /// Animated screenshot-style annotation layers (see `AnnotationLayerSnapshot`).
+    let annotationLayers: [AnnotationLayerSnapshot]
     /// Framed scene (background, camera, cursor…). When present `renderSize`
     /// is the canvas size and `baseTransform` yields the upright source at
     /// its natural size.
@@ -90,6 +94,54 @@ final class EffectsCompositionInstruction: NSObject, AVVideoCompositionInstructi
         }
     }
 
+    /// One animated layer of a `VideoAnnotationSegment`'s drawing: either the
+    /// full-frame pixelate/blur/highlight composite (`reveal == nil`, always
+    /// a plain fade) or one user annotation rasterized alone and cropped to
+    /// its own alpha bounds, in drawing (z) order.
+    ///
+    /// `image`'s extent is the layer's own small pixel rect, not the full
+    /// canvas — `rect` places it in content-normalized (top-left) space the
+    /// same way a `TextSnapshot` places its box, and `reveal`'s points/center
+    /// are already expressed in `image`'s own pixel coordinates (bottom-left,
+    /// CIImage convention) so the reveal mask lines up with it directly.
+    struct AnnotationLayerSnapshot: Sendable {
+        /// Shape a `draw` entrance/exit reveals, in this layer's own pixel
+        /// space (matches `Annotation.RevealGeometry`, just re-expressed
+        /// after the per-annotation crop).
+        enum Reveal: Sendable {
+            case path(points: [CGPoint], width: CGFloat)
+            case sweep(center: CGPoint, rotation: CGFloat)
+        }
+
+        let segmentID: UUID
+        let startTime: Double
+        let endTime: Double
+        let rect: CGRect
+        let image: CIImage
+        /// Position among the segment's per-annotation layers in drawing
+        /// order (0 for the base layer, which isn't staggered).
+        let layerIndex: Int
+        let fadeIn: Double
+        let fadeOut: Double
+        let entrance: VideoAnnotationSegment.Animation
+        let exit: VideoAnnotationSegment.Animation
+        let stagger: Double
+        let reveal: Reveal?
+
+        /// Effective entrance/exit + reveal geometry pre-resolved: `draw`
+        /// with no reveal geometry falls back to `pop`, decided once here so
+        /// `VideoAnnotationMotion` stays pure animation math with no
+        /// knowledge of which tools have something to trace.
+        nonisolated func motionState(at t: Double) -> VideoAnnotationMotion.State {
+            let effectiveEntrance = (entrance == .draw && reveal == nil) ? .pop : entrance
+            let effectiveExit = (exit == .draw && reveal == nil) ? .pop : exit
+            return VideoAnnotationMotion.state(t: t, segmentStart: startTime, segmentEnd: endTime,
+                                               layerIndex: layerIndex, stagger: stagger,
+                                               entrance: effectiveEntrance, exit: effectiveExit,
+                                               fadeIn: fadeIn, fadeOut: fadeOut)
+        }
+    }
+
     init(timeRange: CMTimeRange,
          videoTrackID: CMPersistentTrackID,
          naturalSize: CGSize,
@@ -99,6 +151,7 @@ final class EffectsCompositionInstruction: NSObject, AVVideoCompositionInstructi
          zoomSegments: [VideoZoomSnapshot],
          censorSegments: [VideoCensorSnapshot],
          textSnapshots: [TextSnapshot] = [],
+         annotationLayers: [AnnotationLayerSnapshot] = [],
          scene: VideoSceneSnapshot? = nil) {
         self.timeRange = timeRange
         self.videoTrackID = videoTrackID
@@ -109,6 +162,7 @@ final class EffectsCompositionInstruction: NSObject, AVVideoCompositionInstructi
         self.zoomSegments = zoomSegments
         self.censorSegments = censorSegments
         self.textSnapshots = textSnapshots
+        self.annotationLayers = annotationLayers
         self.scene = scene
         super.init()
     }
@@ -339,8 +393,19 @@ final class EffectsVideoCompositor: NSObject, AVVideoCompositing {
         if let webcam = scene.webcam, let buffer = request.sourceFrame(byTrackID: webcam.trackID) {
             webcamFrame = CIImage(cvPixelBuffer: buffer).transformed(by: webcam.uprightTransform)
         }
+        // A missing/exhausted overlay track (media shorter than its duration,
+        // or unreadable) just yields no frame for that instant — the overlay
+        // is skipped this frame rather than failing the whole render.
+        var overlayFrames: [UUID: CIImage] = [:]
+        for overlay in scene.overlays {
+            guard let trackID = overlay.trackID, let buffer = request.sourceFrame(byTrackID: trackID) else { continue }
+            overlayFrames[overlay.id] = CIImage(cvPixelBuffer: buffer).transformed(by: overlay.uprightTransform)
+        }
+        let compTime = CMTimeGetSeconds(request.compositionTime)
         var image = VideoSceneRenderer.render(content: content, time: assetTime, scene: scene,
                                               censors: instruction.censorSegments, texts: instruction.textSnapshots,
+                                              compositionTime: compTime, overlayFrames: overlayFrames,
+                                              annotationLayers: instruction.annotationLayers,
                                               webcamFrame: webcamFrame)
         let canvas = scene.layout.canvasSize
         let outW = CGFloat(CVPixelBufferGetWidth(outBuf)), outH = CGFloat(CVPixelBufferGetHeight(outBuf))

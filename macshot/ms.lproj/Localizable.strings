@@ -854,3 +854,43 @@
 "Zoom out timeline" = "Zum keluar garis masa";
 "macOS" = "macOS";
 "Sway" = "Hayunan";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Anotasi";
+"Annotate Frame" = "Anotasi Bingkai";
+"Annotation" = "Anotasi";
+"Edit Drawing…" = "Edit Lukisan…";
+"Hold video while shown" = "Jeda video semasa dipaparkan";
+"Discard Drawing?" = "Buang lukisan?";
+"Your drawing will be lost if you close without adding it." = "Lukisan anda akan hilang jika anda tutup tanpa menambahkannya.";
+"Couldn't capture this frame" = "Tidak dapat menangkap bingkai ini";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Masuk";
+"Exit" = "Keluar";
+"Animation" = "Animasi";
+"Timing" = "Pemasaan";
+"Pop" = "Muncul pantas";
+"Draw In" = "Lukis masuk";
+"Draw Out" = "Lukis keluar";
+"Slide Up" = "Gelongsor ke atas";
+"Slide" = "Gelongsor";
+"Wipe" = "Kesat";
+"Stagger" = "Susulan";
+"Stagger only applies when the drawing has more than one item." = "Susulan hanya terpakai apabila lukisan mempunyai lebih daripada satu item.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Lukis masuk mengesan garisan, anak panah, lakaran bebas tangan dan garis luar bentuk semasa ia muncul; item lain hanya muncul terus.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Tindanan…";
+"Overlay" = "Tindanan";
+"This project doesn't have a folder to import files into." = "Projek ini tiada folder untuk mengimport fail.";
+"Importing overlay..." = "Mengimport tindanan...";
+"That file couldn't be read as a video or image." = "Fail itu tidak dapat dibaca sebagai video atau imej.";
+"Couldn't copy that file into the project." = "Fail itu tidak dapat disalin ke dalam projek.";
+"This video has no transparency — it will cover the picture" = "Video ini tiada ketelusan — ia akan menutup gambar";
+"Replace Media…" = "Gantikan Media…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Fail tindanan hilang. Gantikan untuk mengembalikan tindanan.";
+"Media" = "Media";
+"Opacity" = "Kelegapan";
+"Reset Size" = "Tetapkan Semula Saiz";
+"Opaque" = "Legap";

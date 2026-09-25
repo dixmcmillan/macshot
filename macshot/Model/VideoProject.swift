@@ -398,6 +398,8 @@ final class VideoProject: Codable {
     var speeds: [VideoSpeedSegment] = []
     var freezes: [VideoFreezeSegment] = []
     var captions: [VideoCaptionSegment] = []
+    var annotations: [VideoAnnotationSegment] = []
+    var overlays: [VideoOverlaySegment] = []
 
     init(sourceDuration: Double, look: VideoLook) {
         self.sourceDuration = sourceDuration
@@ -408,7 +410,7 @@ final class VideoProject: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case version, sourceDuration, trimStart, trimEnd, muted, crop, look
-        case zooms, censors, texts, cuts, speeds, freezes, captions
+        case zooms, censors, texts, cuts, speeds, freezes, captions, annotations, overlays
     }
 
     required init(from decoder: Decoder) throws {
@@ -430,6 +432,8 @@ final class VideoProject: Codable {
         speeds = Self.lenientArray(c, .speeds)
         freezes = Self.lenientArray(c, .freezes)
         captions = Self.lenientArray(c, .captions)
+        annotations = Self.lenientArray(c, .annotations)
+        overlays = Self.lenientArray(c, .overlays)
         sanitizeSegments()
     }
 
@@ -449,6 +453,8 @@ final class VideoProject: Codable {
         try c.encode(speeds, forKey: .speeds)
         try c.encode(freezes, forKey: .freezes)
         try c.encode(captions, forKey: .captions)
+        try c.encode(annotations, forKey: .annotations)
+        try c.encode(overlays, forKey: .overlays)
     }
 
     /// One corrupt segment costs that segment, not the project.
@@ -480,6 +486,9 @@ final class VideoProject: Codable {
         for s in speeds { s.endTime = min(s.endTime, d) }
         freezes = freezes.filter { $0.atTime.isFinite && $0.atTime >= 0 && $0.atTime < d }
         captions = captions.filter { valid($0.startTime, $0.endTime) }
+        annotations = annotations.filter { valid($0.startTime, $0.endTime) && !$0.annotationData.isEmpty }
+        for s in annotations { s.endTime = min(s.endTime, d) }
+        overlays = overlays.filter { $0.startTime.isFinite && $0.startTime >= 0 && $0.startTime < d && !$0.fileName.isEmpty }
     }
 
     // MARK: Snapshots
@@ -505,6 +514,6 @@ final class VideoProject: Codable {
             || crop != CGRect(x: 0, y: 0, width: 1, height: 1)
             || look.frame.drawsBackground
             || !zooms.isEmpty || !censors.isEmpty || !texts.isEmpty || !cuts.isEmpty
-            || !speeds.isEmpty || !freezes.isEmpty || !captions.isEmpty
+            || !speeds.isEmpty || !freezes.isEmpty || !captions.isEmpty || !annotations.isEmpty || !overlays.isEmpty
     }
 }

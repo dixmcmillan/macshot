@@ -852,3 +852,43 @@
 "Zoom out timeline" = "Зменшити шкалу часу";
 "macOS" = "macOS";
 "Sway" = "Погойдування";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Анотувати";
+"Annotate Frame" = "Анотувати кадр";
+"Annotation" = "Анотація";
+"Edit Drawing…" = "Змінити малюнок…";
+"Hold video while shown" = "Зупинити відео на час показу";
+"Discard Drawing?" = "Відхилити малюнок?";
+"Your drawing will be lost if you close without adding it." = "Ваш малюнок буде втрачено, якщо закрити без додавання.";
+"Couldn't capture this frame" = "Не вдалося захопити цей кадр";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Вхід";
+"Exit" = "Вихід";
+"Animation" = "Анімація";
+"Timing" = "Таймінг";
+"Pop" = "Раптова поява";
+"Draw In" = "Малювання входу";
+"Draw Out" = "Малювання виходу";
+"Slide Up" = "Зсув вгору";
+"Slide" = "Зсув";
+"Wipe" = "Витіснення";
+"Stagger" = "Каскад";
+"Stagger only applies when the drawing has more than one item." = "Каскад застосовується лише тоді, коли в малюнку більше одного елемента.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Малювання входу промальовує лінії, стрілки, довільні штрихи та контури фігур під час появи; інші елементи просто з'являються раптово.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Накладання…";
+"Overlay" = "Накладання";
+"This project doesn't have a folder to import files into." = "У цьому проєкті немає папки для імпорту файлів.";
+"Importing overlay..." = "Імпортування накладання...";
+"That file couldn't be read as a video or image." = "Не вдалося прочитати цей файл як відео чи зображення.";
+"Couldn't copy that file into the project." = "Не вдалося скопіювати цей файл у проєкт.";
+"This video has no transparency — it will cover the picture" = "Це відео не має прозорості — воно закриє зображення";
+"Replace Media…" = "Замінити медіафайл…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Файл накладання відсутній. Замініть його, щоб відновити накладання.";
+"Media" = "Медіафайл";
+"Opacity" = "Непрозорість";
+"Reset Size" = "Скинути розмір";
+"Opaque" = "Непрозорий";

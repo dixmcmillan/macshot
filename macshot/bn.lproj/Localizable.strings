@@ -854,3 +854,43 @@
 "Zoom out timeline" = "টাইমলাইন জুম আউট করুন";
 "macOS" = "macOS";
 "Sway" = "দোলন";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "টীকা যোগ করুন";
+"Annotate Frame" = "ফ্রেমে টীকা দিন";
+"Annotation" = "টীকা";
+"Edit Drawing…" = "অঙ্কন সম্পাদনা করুন…";
+"Hold video while shown" = "প্রদর্শনকালে ভিডিও থামিয়ে রাখুন";
+"Discard Drawing?" = "অঙ্কন বাতিল করবেন?";
+"Your drawing will be lost if you close without adding it." = "যোগ না করে বন্ধ করলে আপনার অঙ্কনটি হারিয়ে যাবে।";
+"Couldn't capture this frame" = "এই ফ্রেমটি ক্যাপচার করা যায়নি";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "প্রবেশ";
+"Exit" = "প্রস্থান";
+"Animation" = "অ্যানিমেশন";
+"Timing" = "টাইমিং";
+"Pop" = "পপ";
+"Draw In" = "ড্র ইন";
+"Draw Out" = "ড্র আউট";
+"Slide Up" = "স্লাইড আপ";
+"Slide" = "স্লাইড";
+"Wipe" = "ওয়াইপ";
+"Stagger" = "ক্রমিক বিলম্ব";
+"Stagger only applies when the drawing has more than one item." = "ড্রয়িংয়ে একাধিক আইটেম থাকলে তবেই ক্রমিক বিলম্ব প্রযোজ্য হয়।";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "ড্র ইন প্রবেশের সময় লাইন, তীর, ফ্রিহ্যান্ড স্ট্রোক এবং শেপের আউটলাইন এঁকে দেখায়; অন্য আইটেমগুলো শুধু পপ ইন করে দেখা দেয়।";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "ওভারলে…";
+"Overlay" = "ওভারলে";
+"This project doesn't have a folder to import files into." = "এই প্রজেক্টে ফাইল আমদানি করার জন্য কোনো ফোল্ডার নেই।";
+"Importing overlay..." = "ওভারলে আমদানি করা হচ্ছে...";
+"That file couldn't be read as a video or image." = "সেই ফাইলটি ভিডিও বা ছবি হিসেবে পড়া যায়নি।";
+"Couldn't copy that file into the project." = "সেই ফাইলটি প্রজেক্টে কপি করা যায়নি।";
+"This video has no transparency — it will cover the picture" = "এই ভিডিওতে কোনো স্বচ্ছতা নেই — এটি ছবিটিকে ঢেকে দেবে";
+"Replace Media…" = "মিডিয়া পরিবর্তন করুন…";
+"The overlay file is missing. Replace it to bring the overlay back." = "ওভারলে ফাইলটি খুঁজে পাওয়া যাচ্ছে না। ওভারলে ফিরিয়ে আনতে এটি পরিবর্তন করুন।";
+"Media" = "মিডিয়া";
+"Opacity" = "অস্বচ্ছতা";
+"Reset Size" = "আকার রিসেট করুন";
+"Opaque" = "অস্বচ্ছ";

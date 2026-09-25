@@ -852,3 +852,43 @@
 "Zoom out timeline" = "Oddialiť časovú os";
 "macOS" = "macOS";
 "Sway" = "Kývanie";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Anotovať";
+"Annotate Frame" = "Anotovať snímku";
+"Annotation" = "Anotácia";
+"Edit Drawing…" = "Upraviť kresbu…";
+"Hold video while shown" = "Zastaviť video počas zobrazenia";
+"Discard Drawing?" = "Zahodiť kresbu?";
+"Your drawing will be lost if you close without adding it." = "Ak zatvoríte bez pridania, kresba sa stratí.";
+"Couldn't capture this frame" = "Túto snímku sa nepodarilo zachytiť";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Vstup";
+"Exit" = "Výstup";
+"Animation" = "Animácia";
+"Timing" = "Časovanie";
+"Pop" = "Vyskočenie";
+"Draw In" = "Vykreslenie";
+"Draw Out" = "Odkreslenie";
+"Slide Up" = "Posun nahor";
+"Slide" = "Posun";
+"Wipe" = "Stieranie";
+"Stagger" = "Rozostup";
+"Stagger only applies when the drawing has more than one item." = "Rozostup sa použije, len ak kresba obsahuje viac ako jednu položku.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Vykreslenie postupne obkresľuje čiary, šípky, kresby od ruky a obrysy tvarov pri ich zobrazení; ostatné položky sa jednoducho zobrazia naraz.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Prekrytie…";
+"Overlay" = "Prekrytie";
+"This project doesn't have a folder to import files into." = "Tento projekt nemá priečinok na import súborov.";
+"Importing overlay..." = "Importuje sa prekrytie...";
+"That file couldn't be read as a video or image." = "Tento súbor sa nepodarilo prečítať ako video alebo obrázok.";
+"Couldn't copy that file into the project." = "Tento súbor sa nepodarilo skopírovať do projektu.";
+"This video has no transparency — it will cover the picture" = "Toto video nemá priehľadnosť — prekryje obraz";
+"Replace Media…" = "Nahradiť médium…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Súbor prekrytia chýba. Nahraďte ho, aby sa prekrytie obnovilo.";
+"Media" = "Médium";
+"Opacity" = "Krytie";
+"Reset Size" = "Obnoviť veľkosť";
+"Opaque" = "Nepriehľadné";

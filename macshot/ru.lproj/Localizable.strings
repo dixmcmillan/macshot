@@ -852,3 +852,43 @@
 "Zoom out timeline" = "Уменьшить шкалу времени";
 "macOS" = "macOS";
 "Sway" = "Покачивание";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Аннотировать";
+"Annotate Frame" = "Аннотировать кадр";
+"Annotation" = "Аннотация";
+"Edit Drawing…" = "Изменить рисунок…";
+"Hold video while shown" = "Остановить видео на время показа";
+"Discard Drawing?" = "Отклонить рисунок?";
+"Your drawing will be lost if you close without adding it." = "Ваш рисунок будет утерян, если закрыть без добавления.";
+"Couldn't capture this frame" = "Не удалось захватить этот кадр";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Вход";
+"Exit" = "Выход";
+"Animation" = "Анимация";
+"Timing" = "Тайминг";
+"Pop" = "Резкое появление";
+"Draw In" = "Прорисовка входа";
+"Draw Out" = "Прорисовка выхода";
+"Slide Up" = "Сдвиг вверх";
+"Slide" = "Сдвиг";
+"Wipe" = "Вытеснение";
+"Stagger" = "Каскад";
+"Stagger only applies when the drawing has more than one item." = "Каскад применяется только если в рисунке больше одного элемента.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Прорисовка входа отображает линии, стрелки, произвольные штрихи и контуры фигур по мере появления; остальные элементы просто появляются резко.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Наложение…";
+"Overlay" = "Наложение";
+"This project doesn't have a folder to import files into." = "В этом проекте нет папки для импорта файлов.";
+"Importing overlay..." = "Импорт наложения...";
+"That file couldn't be read as a video or image." = "Не удалось прочитать этот файл как видео или изображение.";
+"Couldn't copy that file into the project." = "Не удалось скопировать этот файл в проект.";
+"This video has no transparency — it will cover the picture" = "У этого видео нет прозрачности — оно закроет изображение";
+"Replace Media…" = "Заменить медиафайл…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Файл наложения отсутствует. Замените его, чтобы восстановить наложение.";
+"Media" = "Медиафайл";
+"Opacity" = "Непрозрачность";
+"Reset Size" = "Сбросить размер";
+"Opaque" = "Непрозрачный";

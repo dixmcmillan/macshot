@@ -21,11 +21,12 @@ struct VideoEditChange: OptionSet {
 
 enum VideoSelection: Equatable {
     case zoom(UUID), censor(UUID), text(UUID), cut(UUID), speed(UUID), freeze(UUID), caption(UUID)
+    case annotation(UUID), overlay(UUID)
 
     var id: UUID {
         switch self {
         case .zoom(let id), .censor(let id), .text(let id), .cut(let id), .speed(let id), .freeze(let id),
-             .caption(let id): return id
+             .caption(let id), .annotation(let id), .overlay(let id): return id
         }
     }
 }
@@ -234,6 +235,8 @@ final class VideoEditorDocument {
         case .speed(let id): return project.speeds.contains { $0.id == id }
         case .freeze(let id): return project.freezes.contains { $0.id == id }
         case .caption(let id): return project.captions.contains { $0.id == id }
+        case .annotation(let id): return project.annotations.contains { $0.id == id }
+        case .overlay(let id): return project.overlays.contains { $0.id == id }
         }
     }
 
@@ -250,6 +253,8 @@ final class VideoEditorDocument {
             case .speed(let id): project.speeds.removeAll { $0.id == id }
             case .freeze(let id): project.freezes.removeAll { $0.id == id }
             case .caption(let id): project.captions.removeAll { $0.id == id }
+            case .annotation(let id): project.annotations.removeAll { $0.id == id }
+            case .overlay(let id): project.overlays.removeAll { $0.id == id }
             }
         }
         self.selection = nil
@@ -259,6 +264,22 @@ final class VideoEditorDocument {
     func rememberLook() {
         guard RecordingSessionStore.owns(source.originalURL) else { return }
         project.look.remember()
+    }
+
+    // MARK: Annotation hold freezes
+
+    /// Freezes tied to an annotation's `holdTime` are matched within half a
+    /// frame — tight enough that it can only be the freeze that hold created.
+    var freezeFrameTolerance: Double { frameDuration.seconds / 2 }
+
+    /// Keeps a "hold video while shown" freeze attached to a drawing whose
+    /// `holdTime` just moved (its entrance, entrance duration, stagger or
+    /// start changed, or its annotation count changed). No-op unless a freeze
+    /// actually sits at `oldHoldTime`; callers run this inside the same
+    /// `edit(_:_:)` body that moved it, so the move is one undo step.
+    func relocateAnnotationFreeze(in project: VideoProject, from oldHoldTime: Double, to newHoldTime: Double) {
+        VideoAnnotationSegment.relocateHoldFreeze(in: project.freezes, from: oldHoldTime, to: newHoldTime,
+                                                  tolerance: freezeFrameTolerance)
     }
 
     // MARK: Pointer motion
@@ -347,6 +368,24 @@ final class VideoEditorDocument {
                 if self.project.encoded() == data { self.savedState = data }
             }
         }
+    }
+
+    /// Where an overlay's media lives (copied into the project folder on import).
+    func overlayURL(for segment: VideoOverlaySegment) -> URL? {
+        guard !segment.fileName.isEmpty, !segment.fileName.contains("/") else { return nil }
+        return projectDirectory?.appendingPathComponent(segment.fileName)
+    }
+
+    /// Reserves a unique destination for an overlay import, mirroring
+    /// `importBackgroundImage`'s naming. Unlike that helper, this does not
+    /// copy the file itself — an overlay's source can be a large ProRes
+    /// `.mov`, so the caller does the actual copy off the main thread and
+    /// only needs a project-owned name and URL to write to.
+    func overlayImportDestination(extension ext: String) -> URL? {
+        guard let directory = projectDirectory else { return nil }
+        let safeExt = ext.isEmpty ? "mov" : ext.lowercased()
+        let name = "overlay-\(UUID().uuidString.prefix(8)).\(safeExt)"
+        return directory.appendingPathComponent(name)
     }
 
     /// Copies a user-chosen background image into the project folder.

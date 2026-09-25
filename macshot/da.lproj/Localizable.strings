@@ -852,3 +852,43 @@
 "Zoom out timeline" = "Zoom ud på tidslinjen";
 "macOS" = "macOS";
 "Sway" = "Svaj";
+
+/* Pause-and-annotate (video editor) */
+"Annotate" = "Kommentér";
+"Annotate Frame" = "Kommentér billede";
+"Annotation" = "Kommentar";
+"Edit Drawing…" = "Rediger tegning…";
+"Hold video while shown" = "Sæt video på pause, mens den vises";
+"Discard Drawing?" = "Kassér tegning?";
+"Your drawing will be lost if you close without adding it." = "Din tegning går tabt, hvis du lukker uden at tilføje den.";
+"Couldn't capture this frame" = "Kunne ikke indfange dette billede";
+
+/* Annotation entrance/exit animation (video editor) */
+"Entrance" = "Indgang";
+"Exit" = "Afgang";
+"Animation" = "Animation";
+"Timing" = "Timing";
+"Pop" = "Pop op";
+"Draw In" = "Tegn ind";
+"Draw Out" = "Tegn ud";
+"Slide Up" = "Glid op";
+"Slide" = "Glid";
+"Wipe" = "Fej";
+"Stagger" = "Forskydning";
+"Stagger only applies when the drawing has more than one item." = "Forskydning gælder kun, når tegningen har mere end ét element.";
+"Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Tegn ind optegner streger, pile, frihåndsstreger og formkonturer, når de kommer ind; andre elementer popper bare op.";
+
+/* Overlay clips (video editor) */
+"Overlay…" = "Overlay…";
+"Overlay" = "Overlay";
+"This project doesn't have a folder to import files into." = "Dette projekt har ingen mappe at importere filer til.";
+"Importing overlay..." = "Importerer overlay...";
+"That file couldn't be read as a video or image." = "Filen kunne ikke læses som en video eller et billede.";
+"Couldn't copy that file into the project." = "Filen kunne ikke kopieres ind i projektet.";
+"This video has no transparency — it will cover the picture" = "Denne video har ingen gennemsigtighed — den vil dække billedet";
+"Replace Media…" = "Udskift medie…";
+"The overlay file is missing. Replace it to bring the overlay back." = "Overlay-filen mangler. Udskift den for at få overlayet tilbage.";
+"Media" = "Medie";
+"Opacity" = "Uigennemsigtighed";
+"Reset Size" = "Nulstil størrelse";
+"Opaque" = "Uigennemsigtig";
