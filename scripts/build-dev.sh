@@ -23,7 +23,16 @@ plist="$OUT/Contents/Info.plist"
   || /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName macshot Dev" "$plist"
 /usr/libexec/PlistBuddy -c "Add :SUEnableAutomaticChecks bool false" "$plist" 2>/dev/null \
   || /usr/libexec/PlistBuddy -c "Set :SUEnableAutomaticChecks false" "$plist"
-codesign --force --deep --sign - "$OUT" >/dev/null 2>&1
+# Ad-hoc signatures change with every build, and macOS ties the Screen
+# Recording grant to the signature, so each rebuild would need re-approval.
+# A local self-signed identity keeps the designated requirement stable.
+IDENTITY=${MACSHOT_DEV_SIGNING_IDENTITY:-macshot Dev Local Signing}
+if security find-identity -p codesigning 2>/dev/null | grep -q "\"$IDENTITY\""; then
+  codesign --force --deep --sign "$IDENTITY" "$OUT" >/dev/null 2>&1
+else
+  echo "note: no \"$IDENTITY\" identity; signing ad hoc (Screen Recording must be re-granted after each build)"
+  codesign --force --deep --sign - "$OUT" >/dev/null 2>&1
+fi
 echo "Built: $OUT ($(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist"))"
 [[ "${1:-}" == "--open" ]] && open "$OUT"
 exit 0
