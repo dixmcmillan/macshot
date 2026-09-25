@@ -897,3 +897,7 @@
 "Opacity" = "অস্বচ্ছতা";
 "Reset Size" = "আকার রিসেট করুন";
 "Opaque" = "অস্বচ্ছ";
+"Transform" = "রূপান্তর";
+"Scale" = "স্কেল";
+"Rotation" = "ঘূর্ণন";
+"Reset Transform" = "রূপান্তর রিসেট করুন";

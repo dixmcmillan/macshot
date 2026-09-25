@@ -897,3 +897,7 @@
 "Opacity" = "Opaklık";
 "Reset Size" = "Boyutu Sıfırla";
 "Opaque" = "Opak";
+"Transform" = "Dönüşüm";
+"Scale" = "Ölçek";
+"Rotation" = "Döndürme";
+"Reset Transform" = "Dönüşümü Sıfırla";

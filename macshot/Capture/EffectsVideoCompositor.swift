@@ -127,6 +127,43 @@ final class EffectsCompositionInstruction: NSObject, AVVideoCompositionInstructi
         let exit: VideoAnnotationSegment.Animation
         let stagger: Double
         let reveal: Reveal?
+        /// Segment-level direct-manipulation transform (`VideoAnnotationSegment.offset/scale/rotation`),
+        /// duplicated onto every layer of the segment exactly like `fadeIn`/
+        /// `entrance` already are. Default (identity) values mean callers
+        /// that don't care about the stage transform — every existing test,
+        /// and any segment saved before it existed — get today's placement
+        /// unchanged.
+        let pivot: CGPoint
+        let offset: CGPoint
+        let scale: Double
+        let rotation: Double
+
+        /// Explicit (rather than the synthesized memberwise) initializer:
+        /// giving a stored `let` a default value drops it from Swift's
+        /// synthesized init entirely rather than making it optional, so the
+        /// four stage-transform fields need this to stay optional at every
+        /// existing call site (tests included).
+        init(segmentID: UUID, startTime: Double, endTime: Double, rect: CGRect, image: CIImage, layerIndex: Int,
+             fadeIn: Double, fadeOut: Double, entrance: VideoAnnotationSegment.Animation,
+             exit: VideoAnnotationSegment.Animation, stagger: Double, reveal: Reveal?,
+             pivot: CGPoint = CGPoint(x: 0.5, y: 0.5), offset: CGPoint = .zero, scale: Double = 1, rotation: Double = 0) {
+            self.segmentID = segmentID
+            self.startTime = startTime
+            self.endTime = endTime
+            self.rect = rect
+            self.image = image
+            self.layerIndex = layerIndex
+            self.fadeIn = fadeIn
+            self.fadeOut = fadeOut
+            self.entrance = entrance
+            self.exit = exit
+            self.stagger = stagger
+            self.reveal = reveal
+            self.pivot = pivot
+            self.offset = offset
+            self.scale = scale
+            self.rotation = rotation
+        }
 
         /// Effective entrance/exit + reveal geometry pre-resolved: `draw`
         /// with no reveal geometry falls back to `pop`, decided once here so

@@ -897,3 +897,7 @@
 "Opacity" = "אטימות";
 "Reset Size" = "איפוס גודל";
 "Opaque" = "אטום";
+"Transform" = "טרנספורמציה";
+"Scale" = "קנה מידה";
+"Rotation" = "סיבוב";
+"Reset Transform" = "איפוס טרנספורמציה";

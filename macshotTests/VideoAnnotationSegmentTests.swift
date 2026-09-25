@@ -96,6 +96,74 @@ final class VideoAnnotationSegmentTests: XCTestCase {
         }
     }
 
+    // MARK: - Stage transform (offset/scale/rotation)
+
+    func testStageTransformRoundTrips() throws {
+        let segment = VideoAnnotationSegment(startTime: 0, endTime: 3, canvasSize: CGSize(width: 10, height: 10),
+                                             annotationData: try arrowData(), offset: CGPoint(x: 0.2, y: -0.1),
+                                             scale: 2.5, rotation: .pi / 3)
+        let project = VideoProject(sourceDuration: 10, look: VideoLook())
+        project.annotations = [segment]
+        let copy = try XCTUnwrap(project.copy())
+        XCTAssertEqual(copy.encoded(), project.encoded())
+        let decoded = copy.annotations[0]
+        XCTAssertEqual(decoded.offset, CGPoint(x: 0.2, y: -0.1))
+        XCTAssertEqual(decoded.scale, 2.5, accuracy: 1e-9)
+        XCTAssertEqual(decoded.rotation, .pi / 3, accuracy: 1e-9)
+    }
+
+    func testStageTransformDecodesToIdentityWhenAbsent() throws {
+        // A project saved before the stage transform existed has none of
+        // these keys at all — must decode as identity, not zero-everything
+        // (scale 0 would collapse the drawing to nothing).
+        let json = """
+        {"sourceDuration": 5, "annotations": [
+          {"startTime": 0, "endTime": 2, "annotationData": "\(try arrowData().base64EncodedString())"}
+        ]}
+        """
+        let project = try XCTUnwrap(VideoProject.decode(Data(json.utf8)))
+        let segment = try XCTUnwrap(project.annotations.first)
+        XCTAssertEqual(segment.offset, .zero)
+        XCTAssertEqual(segment.scale, 1, accuracy: 1e-9)
+        XCTAssertEqual(segment.rotation, 0, accuracy: 1e-9)
+        XCTAssertFalse(segment.hasTransform)
+    }
+
+    func testScaleClampsToTheModelRange() {
+        let segment = VideoAnnotationSegment(startTime: 0, endTime: 3, canvasSize: CGSize(width: 10, height: 10),
+                                             annotationData: Data(), scale: 50)
+        XCTAssertEqual(segment.scale, VideoAnnotationSegment.maxScale, accuracy: 1e-9)
+        segment.scale = VideoAnnotationSegment.clampedScale(-3)
+        XCTAssertEqual(segment.scale, VideoAnnotationSegment.minScale, accuracy: 1e-9)
+        XCTAssertEqual(VideoAnnotationSegment.clampedScale(.nan), 1)
+    }
+
+    /// `canvasDelta` must be the exact inverse of `contentRect(forCanvas:)`'s
+    /// translation: shifting a canvas rect by the delta for a given content
+    /// offset produces a content rect shifted by that same offset — this is
+    /// the math `editAnnotation` uses to bake `offset` into the annotations
+    /// before reopening the drawing editor.
+    func testCanvasDeltaInvertsContentRectForCanvas() {
+        let segment = VideoAnnotationSegment(startTime: 0, endTime: 1, canvasSize: CGSize(width: 200, height: 100),
+                                             annotationData: Data())
+        let offset = CGPoint(x: 0.1, y: -0.2)
+        let delta = VideoAnnotationSegment.canvasDelta(forContentOffset: offset, canvasSize: segment.canvasSize)
+        let original = CGRect(x: 40, y: 30, width: 20, height: 10)
+        let shifted = original.offsetBy(dx: delta.x, dy: delta.y)
+        let originalContent = segment.contentRect(forCanvas: original)
+        let shiftedContent = segment.contentRect(forCanvas: shifted)
+        XCTAssertEqual(shiftedContent.origin.x, originalContent.origin.x + offset.x, accuracy: 1e-9)
+        XCTAssertEqual(shiftedContent.origin.y, originalContent.origin.y + offset.y, accuracy: 1e-9)
+    }
+
+    func testHasTransformDetectsAnyNonIdentityComponent() {
+        let identity = VideoAnnotationSegment(startTime: 0, endTime: 3, canvasSize: CGSize(width: 10, height: 10),
+                                              annotationData: Data())
+        XCTAssertFalse(identity.hasTransform)
+        identity.offset = CGPoint(x: 0.01, y: 0)
+        XCTAssertTrue(identity.hasTransform)
+    }
+
     // MARK: - Hold freeze follows holdTime
 
     func testHoldFreezeFollowsHoldTimeChanges() {

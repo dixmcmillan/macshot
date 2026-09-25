@@ -897,3 +897,7 @@
 "Opacity" = "不透明度";
 "Reset Size" = "重置大小";
 "Opaque" = "不透明";
+"Transform" = "变换";
+"Scale" = "缩放";
+"Rotation" = "旋转";
+"Reset Transform" = "重置变换";

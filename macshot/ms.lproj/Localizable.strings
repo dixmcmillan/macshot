@@ -897,3 +897,7 @@
 "Opacity" = "Kelegapan";
 "Reset Size" = "Tetapkan Semula Saiz";
 "Opaque" = "Legap";
+"Transform" = "Transformasi";
+"Scale" = "Skala";
+"Rotation" = "Putaran";
+"Reset Transform" = "Tetapkan Semula Transformasi";

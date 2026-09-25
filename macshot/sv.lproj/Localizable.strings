@@ -895,3 +895,7 @@
 "Opacity" = "Opacitet";
 "Reset Size" = "Återställ storlek";
 "Opaque" = "Opak";
+"Transform" = "Transformation";
+"Scale" = "Skala";
+"Rotation" = "Rotation";
+"Reset Transform" = "Återställ transformation";

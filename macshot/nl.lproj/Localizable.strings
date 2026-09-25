@@ -897,3 +897,7 @@
 "Opacity" = "Dekking";
 "Reset Size" = "Grootte herstellen";
 "Opaque" = "Ondoorzichtig";
+"Transform" = "Transformatie";
+"Scale" = "Schaal";
+"Rotation" = "Rotatie";
+"Reset Transform" = "Transformatie herstellen";

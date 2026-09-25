@@ -895,3 +895,7 @@
 "Opacity" = "Opacitate";
 "Reset Size" = "Resetează dimensiunea";
 "Opaque" = "Opac";
+"Transform" = "Transformare";
+"Scale" = "Scară";
+"Rotation" = "Rotație";
+"Reset Transform" = "Resetează transformarea";

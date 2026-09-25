@@ -176,3 +176,153 @@ final class VideoOverlayEditingTests: XCTestCase {
         XCTAssertFalse(VideoOverlayEditing.hasAlpha(formatDescriptions: []))
     }
 }
+
+/// `RotatedBoxEditing` is the pure geometry behind the stage's rotate/scale
+/// handles for annotation drawings and overlay rotation: hit-testing, handle
+/// placement, and drag math, all in view-space (top-left, y-down) points.
+final class RotatedBoxEditingTests: XCTestCase {
+
+    // MARK: - Rotation direction
+
+    /// A point due "north" of center, rotated a quarter turn, lands "east" —
+    /// the clockwise-as-seen-on-screen convention this type documents.
+    func testRotateIsClockwiseInViewSpace() {
+        let center = CGPoint(x: 10, y: 10)
+        let north = CGPoint(x: 10, y: 0) // smaller y = up, in y-down space
+        let rotated = RotatedBoxEditing.rotate(north, around: center, by: .pi / 2)
+        XCTAssertEqual(rotated.x, 20, accuracy: 1e-6)
+        XCTAssertEqual(rotated.y, 10, accuracy: 1e-6)
+    }
+
+    func testRotateByZeroIsIdentity() {
+        let p = CGPoint(x: 3, y: 4)
+        XCTAssertEqual(RotatedBoxEditing.rotate(p, around: CGPoint(x: 1, y: 1), by: 0), p)
+    }
+
+    // MARK: - Corners
+
+    func testCornersOfUnrotatedRectAreItsOwnCorners() {
+        let rect = CGRect(x: 0, y: 0, width: 10, height: 20)
+        let corners = RotatedBoxEditing.corners(of: rect, rotation: 0)
+        XCTAssertEqual(corners, [CGPoint(x: 0, y: 0), CGPoint(x: 10, y: 0), CGPoint(x: 10, y: 20), CGPoint(x: 0, y: 20)])
+    }
+
+    func testCornersStayEquidistantFromCenterWhenRotated() {
+        let rect = CGRect(x: -5, y: -5, width: 10, height: 10)
+        let corners = RotatedBoxEditing.corners(of: rect, rotation: 0.7)
+        for corner in corners {
+            XCTAssertEqual(hypot(corner.x, corner.y), hypot(5.0, 5.0), accuracy: 1e-6)
+        }
+    }
+
+    // MARK: - Hit testing
+
+    func testContainsFindsPointsInsideAnUnrotatedRect() {
+        let rect = CGRect(x: 0, y: 0, width: 10, height: 10)
+        XCTAssertTrue(RotatedBoxEditing.contains(CGPoint(x: 5, y: 5), in: rect, rotation: 0))
+        XCTAssertFalse(RotatedBoxEditing.contains(CGPoint(x: 15, y: 5), in: rect, rotation: 0))
+    }
+
+    /// A point just past the unrotated square's right edge (outside) sits
+    /// along the direction of the rotated square's vertex once it's spun
+    /// 45° — a diamond's vertices reach `side/√2` farther than its edges —
+    /// so the same point falls inside once rotation is accounted for.
+    func testContainsRespectsRotation() {
+        let rect = CGRect(x: -5, y: -5, width: 10, height: 10)
+        let justPastTheEdge = CGPoint(x: 6, y: 0)
+        XCTAssertFalse(RotatedBoxEditing.contains(justPastTheEdge, in: rect, rotation: 0))
+        XCTAssertTrue(RotatedBoxEditing.contains(justPastTheEdge, in: rect, rotation: .pi / 4))
+    }
+
+    // MARK: - Rotation handle position <-> drag angle round-trip
+
+    func testRotationHandleRestsAboveAnUnrotatedBox() {
+        let rect = CGRect(x: 0, y: 0, width: 10, height: 10)
+        let handle = RotatedBoxEditing.rotationHandlePosition(for: rect, rotation: 0, distance: 20)
+        XCTAssertEqual(handle.x, 5, accuracy: 1e-6)
+        XCTAssertEqual(handle.y, -20, accuracy: 1e-6)
+    }
+
+    func testRotationHandlePositionAndDragAngleAreInverses() {
+        let rect = CGRect(x: -20, y: -30, width: 40, height: 60)
+        let center = RotatedBoxEditing.center(of: rect)
+        for angle: CGFloat in stride(from: -3, through: 3, by: 0.5) {
+            let handle = RotatedBoxEditing.rotationHandlePosition(for: rect, rotation: angle, distance: 25)
+            let recovered = RotatedBoxEditing.rotation(fromCenter: center, to: handle, snap: false)
+            XCTAssertEqual(recovered, angle, accuracy: 1e-5, "angle \(angle) round-tripped to \(recovered)")
+        }
+    }
+
+    func testRotationSnapsToFifteenDegreeSteps() {
+        let center = CGPoint(x: 0, y: 0)
+        // 5° east of north (well inside the 0° step) should snap to 0°;
+        // 10° (well inside the 15° step) should snap to 15°.
+        let angle5 = CGFloat(5) * .pi / 180
+        let towards5 = CGPoint(x: sin(angle5), y: -cos(angle5))
+        XCTAssertEqual(RotatedBoxEditing.rotation(fromCenter: center, to: towards5, snap: true), 0, accuracy: 1e-6)
+        let angle10 = CGFloat(10) * .pi / 180
+        let towards10 = CGPoint(x: sin(angle10), y: -cos(angle10))
+        XCTAssertEqual(RotatedBoxEditing.rotation(fromCenter: center, to: towards10, snap: true),
+                       .pi / 12, accuracy: 1e-6)
+    }
+
+    func testSnapped15RoundsToNearestStep() {
+        XCTAssertEqual(RotatedBoxEditing.snapped15(0.05), 0, accuracy: 1e-9)
+        XCTAssertEqual(RotatedBoxEditing.snapped15(.pi / 12 + 0.05), .pi / 12, accuracy: 1e-9)
+        XCTAssertEqual(RotatedBoxEditing.snapped15(.pi / 4), .pi / 4, accuracy: 1e-9, "45° is already a 15° multiple")
+    }
+
+    // MARK: - Corner drag scale
+
+    func testCornerDragScaleIsTheDistanceRatioFromThePivot() {
+        let pivot = CGPoint(x: 0, y: 0)
+        let originalCorner = CGPoint(x: 10, y: 0)
+        XCTAssertEqual(RotatedBoxEditing.cornerDragScale(pivot: pivot, originalCorner: originalCorner,
+                                                         draggedPoint: CGPoint(x: 20, y: 0), range: 0.1...10), 2, accuracy: 1e-9)
+        XCTAssertEqual(RotatedBoxEditing.cornerDragScale(pivot: pivot, originalCorner: originalCorner,
+                                                         draggedPoint: CGPoint(x: 5, y: 0), range: 0.1...10), 0.5, accuracy: 1e-9)
+    }
+
+    /// Uniform scale doesn't care which direction the corner is dragged in —
+    /// only its distance from the pivot, so rotating the same drag doesn't
+    /// change the resulting scale.
+    func testCornerDragScaleIsRotationIndependent() {
+        let pivot = CGPoint(x: 2, y: 3)
+        let originalCorner = CGPoint(x: 12, y: 3)
+        let dragged = RotatedBoxEditing.rotate(CGPoint(x: 22, y: 3), around: pivot, by: 0.9)
+        XCTAssertEqual(RotatedBoxEditing.cornerDragScale(pivot: pivot, originalCorner: originalCorner,
+                                                         draggedPoint: dragged, range: 0.1...10), 2, accuracy: 1e-6)
+    }
+
+    func testCornerDragScaleClampsToRange() {
+        let pivot = CGPoint.zero
+        let originalCorner = CGPoint(x: 10, y: 0)
+        XCTAssertEqual(RotatedBoxEditing.cornerDragScale(pivot: pivot, originalCorner: originalCorner,
+                                                         draggedPoint: CGPoint(x: 200, y: 0), range: 0.1...10), 10)
+        XCTAssertEqual(RotatedBoxEditing.cornerDragScale(pivot: pivot, originalCorner: originalCorner,
+                                                         draggedPoint: CGPoint(x: 0.1, y: 0), range: 0.1...10), 0.1)
+    }
+
+    func testCornerDragScaleFallsBackOnDegenerateOriginalDistance() {
+        let pivot = CGPoint.zero
+        XCTAssertEqual(RotatedBoxEditing.cornerDragScale(pivot: pivot, originalCorner: pivot,
+                                                         draggedPoint: CGPoint(x: 5, y: 5), range: 0.2...8), 0.2)
+    }
+
+    // MARK: - Arrow-key nudge
+
+    func testNudgeMapsMacOSArrowKeyCodesToDirections() {
+        XCTAssertEqual(RotatedBoxEditing.nudge(forArrowKeyCode: 123, amount: 1), CGPoint(x: -1, y: 0), "left")
+        XCTAssertEqual(RotatedBoxEditing.nudge(forArrowKeyCode: 124, amount: 1), CGPoint(x: 1, y: 0), "right")
+        XCTAssertEqual(RotatedBoxEditing.nudge(forArrowKeyCode: 125, amount: 1), CGPoint(x: 0, y: 1), "down")
+        XCTAssertEqual(RotatedBoxEditing.nudge(forArrowKeyCode: 126, amount: 1), CGPoint(x: 0, y: -1), "up")
+    }
+
+    func testNudgeScalesByAmount() {
+        XCTAssertEqual(RotatedBoxEditing.nudge(forArrowKeyCode: 124, amount: 10), CGPoint(x: 10, y: 0))
+    }
+
+    func testNudgeIsNilForNonArrowKeys() {
+        XCTAssertNil(RotatedBoxEditing.nudge(forArrowKeyCode: 49, amount: 1), "space bar")
+    }
+}

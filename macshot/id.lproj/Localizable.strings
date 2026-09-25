@@ -895,3 +895,7 @@
 "Opacity" = "Opasitas";
 "Reset Size" = "Atur Ulang Ukuran";
 "Opaque" = "Opak";
+"Transform" = "Transformasi";
+"Scale" = "Skala";
+"Rotation" = "Rotasi";
+"Reset Transform" = "Setel Ulang Transformasi";

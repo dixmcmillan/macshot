@@ -895,3 +895,7 @@
 "Opacity" = "Độ đục";
 "Reset Size" = "Đặt lại kích thước";
 "Opaque" = "Đục";
+"Transform" = "Biến đổi";
+"Scale" = "Tỷ lệ";
+"Rotation" = "Xoay";
+"Reset Transform" = "Đặt lại phép biến đổi";

@@ -897,3 +897,7 @@
 "Opacity" = "Deckkraft";
 "Reset Size" = "Größe zurücksetzen";
 "Opaque" = "Deckend";
+"Transform" = "Transformation";
+"Scale" = "Skalierung";
+"Rotation" = "Drehung";
+"Reset Transform" = "Transformation zurücksetzen";

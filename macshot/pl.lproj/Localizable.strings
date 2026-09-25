@@ -895,3 +895,7 @@
 "Opacity" = "Krycie";
 "Reset Size" = "Przywróć rozmiar";
 "Opaque" = "Kryjący";
+"Transform" = "Transformacja";
+"Scale" = "Skala";
+"Rotation" = "Obrót";
+"Reset Transform" = "Zresetuj transformację";

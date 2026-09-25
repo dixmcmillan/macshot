@@ -224,6 +224,117 @@ final class VideoSceneRendererTests: XCTestCase {
         assertColor(pixel(midway, 245, 55), 255, 0, 0)
     }
 
+    // MARK: - Stage transform (offset/scale/rotation), applied as a group about the drawing's pivot
+
+    /// Builds every `AnnotationLayerSnapshot` for a segment with possibly
+    /// several annotations, all sharing the segment's own pivot (the center
+    /// of the union of their tight content bounds) and stage transform —
+    /// exactly what `VideoRenderPlanner.annotationLayers` produces, without
+    /// needing a whole `VideoEditorDocument`.
+    @MainActor
+    private func annotationLayers(_ annotations: [Annotation], layout: VideoSceneLayout,
+                                  offset: CGPoint = .zero, scale: Double = 1, rotation: Double = 0,
+                                  start: Double = 0, end: Double = 4) throws -> [EffectsCompositionInstruction.AnnotationLayerSnapshot] {
+        let segment = VideoAnnotationSegment(startTime: start, endTime: end, canvasSize: contentSize,
+                                             annotationData: try XCTUnwrap(AnnotationSerializer.encode(annotations)),
+                                             fadeIn: 0, fadeOut: 0, entrance: .none, exit: .none,
+                                             offset: offset, scale: scale, rotation: rotation)
+        let full = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let spec = VideoAnnotationRasterizer.spec(for: segment, pixelSize: layout.canvasRect(forContent: full).size)
+        let rendered = try XCTUnwrap(VideoAnnotationRasterizer.render(segment, spec))
+        let pivot = try XCTUnwrap(rendered.pivot)
+        return rendered.layers.enumerated().map { index, layer in
+            EffectsCompositionInstruction.AnnotationLayerSnapshot(
+                segmentID: segment.id, startTime: start, endTime: end, rect: layer.contentRect,
+                image: CIImage(cgImage: layer.image), layerIndex: index, fadeIn: 0, fadeOut: 0,
+                entrance: .none, exit: .none, stagger: 0, reveal: layer.reveal,
+                pivot: pivot, offset: segment.offset, scale: segment.scale, rotation: segment.rotation)
+        }
+    }
+
+    /// `offset` shifts every layer of the drawing by the same amount,
+    /// content-normalized (a fraction of the *full* content size) — a
+    /// drawing moved 10% of the content width lands exactly 10% of the
+    /// content width away on screen, following crop/zoom the same way a
+    /// text box's `rect` would.
+    @MainActor
+    func testOffsetMovesTheDrawingByAContentNormalizedAmount() throws {
+        let layout = layout(enabled: false) // contentSize == canvasSize, 1:1 pixels
+        let square = Annotation(tool: .filledRectangle, startPoint: NSPoint(x: 40, y: 80),
+                                endPoint: NSPoint(x: 80, y: 120), // canvas points, bottom-left origin
+                                color: NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1), strokeWidth: 2)
+        let unmoved = try annotationLayers([square], layout: layout)
+        let moved = try annotationLayers([square], layout: layout, offset: CGPoint(x: 0.1, y: 0))
+
+        let before = VideoSceneRenderer.render(content: content, time: 1, scene: scene(layout), censors: [], texts: [],
+                                               annotationLayers: unmoved)
+        let after = VideoSceneRenderer.render(content: content, time: 1, scene: scene(layout), censors: [], texts: [],
+                                              annotationLayers: moved)
+        // Square center at canvas (60, 100) -> top-left pixel (60, 100).
+        // offset.x = 0.1 of the 400-wide content -> +40 canvas pixels.
+        assertColor(pixel(before, 60, 100), 0, 255, 0)
+        // The square should have moved away from its old spot...
+        assertColor(pixel(after, 60, 100), 255, 0, 0)
+        // ...and landed 40px to the right.
+        assertColor(pixel(after, 100, 100), 0, 255, 0)
+    }
+
+    /// `scale` grows every layer of the drawing uniformly about the shared
+    /// pivot (the union of the layers' own tight bounds) — not about each
+    /// layer's own center — so two annotations move apart from each other,
+    /// not just grow individually. Two squares placed symmetrically about a
+    /// point double their distance from it at `scale == 2`.
+    @MainActor
+    func testScaleDoublesExtentAboutTheSharedPivot() throws {
+        let layout = layout(enabled: false)
+        // Two 40x40 squares, mirrored around canvas point (200, 100) (which
+        // is also the exact canvas center here) — their union's pivot lands
+        // exactly on that point regardless of the gap between them.
+        let left = Annotation(tool: .filledRectangle, startPoint: NSPoint(x: 100, y: 80), endPoint: NSPoint(x: 140, y: 120),
+                              color: NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1), strokeWidth: 2)
+        let right = Annotation(tool: .filledRectangle, startPoint: NSPoint(x: 260, y: 80), endPoint: NSPoint(x: 300, y: 120),
+                               color: NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1), strokeWidth: 2)
+        let unscaled = try annotationLayers([left, right], layout: layout)
+        let scaled = try annotationLayers([left, right], layout: layout, scale: 2)
+
+        let before = VideoSceneRenderer.render(content: content, time: 1, scene: scene(layout), censors: [], texts: [],
+                                               annotationLayers: unscaled)
+        let after = VideoSceneRenderer.render(content: content, time: 1, scene: scene(layout), censors: [], texts: [],
+                                              annotationLayers: scaled)
+        // `left`'s center (120, 100) is 80px left of the pivot (200, 100);
+        // doubled, it's 160px left -> (40, 100). Still green there, and the
+        // original spot is no longer covered by the (now-bigger, but still
+        // not reaching back that far) square. `right` mirrors to (360, 100).
+        assertColor(pixel(before, 120, 100), 0, 255, 0)
+        assertColor(pixel(after, 40, 100), 0, 255, 0)
+        assertColor(pixel(after, 360, 100), 0, 255, 0)
+    }
+
+    /// A 90° (clockwise, as seen on screen) rotation swings each layer
+    /// around the shared pivot: two squares mirrored east/west of the pivot
+    /// end up north/south of it (clockwise: north -> east -> south -> west).
+    /// Each square is left as an axis-aligned 40x40 box after the turn, so
+    /// this checks exact pixels rather than an anti-aliased diagonal edge.
+    @MainActor
+    func testNinetyDegreeRotationSwingsLayersAroundThePivot() throws {
+        let layout = layout(enabled: false)
+        let west = Annotation(tool: .filledRectangle, startPoint: NSPoint(x: 100, y: 80), endPoint: NSPoint(x: 140, y: 120),
+                              color: NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1), strokeWidth: 2)
+        let east = Annotation(tool: .filledRectangle, startPoint: NSPoint(x: 260, y: 80), endPoint: NSPoint(x: 300, y: 120),
+                              color: NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1), strokeWidth: 2)
+        let rotated = try annotationLayers([west, east], layout: layout, rotation: .pi / 2)
+        let image = VideoSceneRenderer.render(content: content, time: 1, scene: scene(layout), censors: [], texts: [],
+                                              annotationLayers: rotated)
+        // Pivot (200, 100). `west`'s center (120, 100, dx=-80) swings to
+        // north of the pivot: (200, 20). `east`'s center (280, 100, dx=+80)
+        // swings to south: (200, 180).
+        assertColor(pixel(image, 200, 20), 0, 255, 0)
+        assertColor(pixel(image, 200, 180), 0, 255, 0)
+        // Neither square is anywhere near its old, un-rotated spot anymore.
+        assertColor(pixel(image, 120, 100), 255, 0, 0)
+        assertColor(pixel(image, 280, 100), 255, 0, 0)
+    }
+
     func testCursorIsDrawnAtItsHotspotAndHonorsVisibility() {
         let layout = layout(enabled: false)
         let white = CIImage(color: CIColor.white).cropped(to: CGRect(x: 0, y: 0, width: 40, height: 40))

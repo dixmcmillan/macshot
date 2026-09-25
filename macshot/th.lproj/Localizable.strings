@@ -895,3 +895,7 @@
 "Opacity" = "ความทึบ";
 "Reset Size" = "รีเซ็ตขนาด";
 "Opaque" = "ทึบแสง";
+"Transform" = "การแปลง";
+"Scale" = "ขนาด";
+"Rotation" = "การหมุน";
+"Reset Transform" = "รีเซ็ตการแปลง";

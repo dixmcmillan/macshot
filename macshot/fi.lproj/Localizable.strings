@@ -895,3 +895,7 @@
 "Opacity" = "Peittävyys";
 "Reset Size" = "Palauta koko";
 "Opaque" = "Peittävä";
+"Transform" = "Muunnos";
+"Scale" = "Skaalaus";
+"Rotation" = "Kierto";
+"Reset Transform" = "Palauta muunnos";

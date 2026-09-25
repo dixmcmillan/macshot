@@ -897,3 +897,7 @@
 "Opacity" = "अपारदर्शिता";
 "Reset Size" = "आकार रीसेट करें";
 "Opaque" = "अपारदर्शी";
+"Transform" = "रूपांतरण";
+"Scale" = "स्केल";
+"Rotation" = "घुमाव";
+"Reset Transform" = "रूपांतरण रीसेट करें";

@@ -897,3 +897,7 @@
 "Opacity" = "العتامة";
 "Reset Size" = "إعادة ضبط الحجم";
 "Opaque" = "معتم";
+"Transform" = "تحويل";
+"Scale" = "تحجيم";
+"Rotation" = "تدوير";
+"Reset Transform" = "إعادة تعيين التحويل";

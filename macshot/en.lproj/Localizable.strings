@@ -894,5 +894,9 @@
 "Media" = "Media";
 "Opacity" = "Opacity";
 "Reset Size" = "Reset Size";
+"Transform" = "Transform";
+"Scale" = "Scale";
+"Rotation" = "Rotation";
+"Reset Transform" = "Reset Transform";
 "Opaque" = "Opaque";
 "Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in.";

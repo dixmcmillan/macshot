@@ -895,3 +895,7 @@
 "Opacity" = "Ugjennomsiktighet";
 "Reset Size" = "Tilbakestill størrelse";
 "Opaque" = "Ugjennomsiktig";
+"Transform" = "Transformasjon";
+"Scale" = "Skala";
+"Rotation" = "Rotasjon";
+"Reset Transform" = "Tilbakestill transformasjon";

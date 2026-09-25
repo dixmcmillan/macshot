@@ -47,6 +47,21 @@ enum VideoAnnotationRasterizer {
         let base: CGImage?
         /// Per-annotation layers, in drawing (z) order.
         let layers: [Layer]
+
+        /// Center of the union of `layers`' tight content bounds — the
+        /// pivot the stage rotates/scales the whole drawing about. `base`
+        /// (full-frame) is deliberately excluded: its rect is always the
+        /// whole canvas, which would make the union (and so the pivot)
+        /// degenerate to the canvas center regardless of what was drawn.
+        /// `nil` when there are no per-annotation layers (a bare censor).
+        var pivot: CGPoint? { Self.unionContentRect(of: layers).map { CGPoint(x: $0.midX, y: $0.midY) } }
+
+        /// Content-normalized union of `layers`' content rects. Exposed
+        /// (rather than kept private) so the stage can compute the same
+        /// pivot/bounding box without re-rasterizing.
+        static func unionContentRect(of layers: [Layer]) -> CGRect? {
+            layers.dropFirst().reduce(layers.first?.contentRect) { $0?.union($1.contentRect) }
+        }
     }
 
     /// Rasterize every user-drawn annotation in `segment`, split into the

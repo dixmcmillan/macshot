@@ -895,3 +895,7 @@
 "Opacity" = "Átlátszatlanság";
 "Reset Size" = "Méret visszaállítása";
 "Opaque" = "Átlátszatlan";
+"Transform" = "Átalakítás";
+"Scale" = "Méretezés";
+"Rotation" = "Forgatás";
+"Reset Transform" = "Átalakítás visszaállítása";

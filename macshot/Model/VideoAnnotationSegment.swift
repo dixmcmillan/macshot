@@ -28,6 +28,9 @@ final class VideoAnnotationSegment: Codable {
     static let defaultEntranceDuration: Double = 0.5
     static let defaultStagger: Double = 0.25
     static let maxStagger: Double = 2
+    /// Uniform scale range for the direct-manipulation stage transform.
+    static let minScale: Double = 0.1
+    static let maxScale: Double = 10
 
     var id: UUID
     var startTime: Double
@@ -45,10 +48,24 @@ final class VideoAnnotationSegment: Codable {
     /// Delay between consecutive annotations' entrances, in drawing order,
     /// so "1… 2… 3…" build up one at a time. Exits stay together.
     var stagger: Double
+    /// Direct-manipulation transform applied to the whole drawing (every
+    /// layer, together) on the stage/preview, on top of the geometry baked
+    /// into `annotationData` itself. Non-destructive: re-editing the drawing
+    /// bakes `offset` into the annotations and resets it to zero (see
+    /// `VideoEditorWindowController.editAnnotation`), but `scale`/`rotation`
+    /// stay as a segment-level transform. Content-normalized like a rect's
+    /// origin (top-left), so it follows crop/zoom the same way.
+    var offset: CGPoint
+    /// Uniform scale about the drawing's pivot (the center of the union of
+    /// its layers' tight content bounds). 1 = no change.
+    var scale: Double
+    /// Radians, clockwise as seen on screen. 0 = no rotation.
+    var rotation: Double
 
     init(id: UUID = UUID(), startTime: Double, endTime: Double, canvasSize: CGSize,
          annotationData: Data, fadeIn: Double = defaultFade, fadeOut: Double = defaultFade,
-         entrance: Animation = .fade, exit: Animation = .fade, stagger: Double = 0) {
+         entrance: Animation = .fade, exit: Animation = .fade, stagger: Double = 0,
+         offset: CGPoint = .zero, scale: Double = 1, rotation: Double = 0) {
         self.id = id
         self.startTime = startTime
         self.endTime = endTime
@@ -59,10 +76,14 @@ final class VideoAnnotationSegment: Codable {
         self.entrance = entrance
         self.exit = exit
         self.stagger = Self.clampedStagger(stagger)
+        self.offset = offset
+        self.scale = Self.clampedScale(scale)
+        self.rotation = rotation
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, startTime, endTime, canvasSize, annotationData, fadeIn, fadeOut, entrance, exit, stagger
+        case offset, scale, rotation
     }
 
     init(from decoder: Decoder) throws {
@@ -80,6 +101,13 @@ final class VideoAnnotationSegment: Codable {
         entrance = c.decode(.entrance, or: .fade)
         exit = c.decode(.exit, or: .fade)
         stagger = Self.clampedStagger(c.decode(.stagger, or: 0))
+        // Projects saved before the stage transform existed decode as
+        // identity — unchanged appearance.
+        let decodedOffset = c.decode(.offset, or: CGPoint.zero)
+        offset = decodedOffset.x.isFinite && decodedOffset.y.isFinite ? decodedOffset : .zero
+        scale = Self.clampedScale(c.decode(.scale, or: 1))
+        let decodedRotation = c.decode(.rotation, or: 0.0)
+        rotation = decodedRotation.isFinite ? decodedRotation : 0
     }
 
     func encode(to encoder: Encoder) throws {
@@ -94,9 +122,27 @@ final class VideoAnnotationSegment: Codable {
         try c.encode(entrance, forKey: .entrance)
         try c.encode(exit, forKey: .exit)
         try c.encode(stagger, forKey: .stagger)
+        try c.encode(offset, forKey: .offset)
+        try c.encode(scale, forKey: .scale)
+        try c.encode(rotation, forKey: .rotation)
     }
 
     static func clampedStagger(_ s: Double) -> Double { s.isFinite ? min(maxStagger, max(0, s)) : 0 }
+    static func clampedScale(_ s: Double) -> Double { s.isFinite ? min(maxScale, max(minScale, s)) : 1 }
+
+    /// Converts a content-normalized offset (top-left, y-down — same
+    /// convention as `contentRect(forCanvas:)`'s output) into a canvas-point
+    /// delta (bottom-left, y-up) for `canvasSize` — the inverse of that
+    /// mapping's translation part. Used by `editAnnotation` to bake `offset`
+    /// into the annotations (via `Annotation.move(dx:dy:)`) before reopening
+    /// the drawing editor, which only ever shows the annotations themselves.
+    static func canvasDelta(forContentOffset offset: CGPoint, canvasSize: CGSize) -> CGPoint {
+        CGPoint(x: offset.x * canvasSize.width, y: -offset.y * canvasSize.height)
+    }
+
+    /// Whether the stage transform differs from identity — drives whether
+    /// "Reset Transform" is worth showing as enabled.
+    var hasTransform: Bool { offset != .zero || abs(scale - 1) > 0.0001 || rotation != 0 }
 
     var duration: Double { max(0, endTime - startTime) }
 

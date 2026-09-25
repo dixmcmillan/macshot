@@ -888,6 +888,31 @@ final class VideoInspectorView: NSView {
         }
         holdRow.toggle.isEnabled = !isHoldTimeBlockedByCut(seg)
         add(holdRow)
+
+        add(InspectorSectionHeader(L("Transform")))
+        add(InspectorCard([
+            slider(L("Scale"), VideoAnnotationSegment.minScale...VideoAnnotationSegment.maxScale,
+                   get: { [unowned self] in segment(self.document.project)?.scale ?? 1 },
+                   format: { "\(Int(($0 * 100).rounded()))%" }) { p, v in
+                segment(p)?.scale = VideoAnnotationSegment.clampedScale(v)
+            },
+            slider(L("Rotation"), -180...180,
+                   get: { [unowned self] in (segment(self.document.project)?.rotation ?? 0) * 180 / .pi },
+                   format: { String(format: "%.0f°", $0) }) { p, v in
+                segment(p)?.rotation = v * .pi / 180
+            },
+        ]))
+        add(button(L("Reset Transform"), symbol: "arrow.counterclockwise", action: #selector(resetAnnotationTransform)))
+    }
+
+    @objc private func resetAnnotationTransform() {
+        guard case .annotation(let id)? = document.selection else { return }
+        document.edit([.render]) { project in
+            guard let seg = project.annotations.first(where: { $0.id == id }) else { return }
+            seg.offset = .zero
+            seg.scale = 1
+            seg.rotation = 0
+        }
     }
 
     @objc private func editAnnotationDrawing() {
@@ -954,6 +979,8 @@ final class VideoInspectorView: NSView {
                 let factor = CGFloat(v) / max(0.0001, s.rect.height)
                 s.rect = VideoProjectLimits.normalizedRect(VideoOverlayEditing.scaledRect(s.rect, by: factor))
             },
+            slider(L("Rotation"), -180...180, get: { [unowned self] in (segment(self.document.project)?.rotation ?? 0) * 180 / .pi },
+                   format: { String(format: "%.0f°", $0) }) { p, v in segment(p)?.rotation = v * .pi / 180 },
         ]))
         add(button(L("Reset Size"), symbol: "arrow.counterclockwise", action: #selector(resetOverlaySize)))
 
@@ -977,6 +1004,7 @@ final class VideoInspectorView: NSView {
         document.edit([.render]) { project in
             guard let seg = project.overlays.first(where: { $0.id == id }) else { return }
             seg.rect = VideoProjectLimits.normalizedRect(VideoOverlaySegment.defaultRect(mediaSize: seg.mediaSize, contentSize: contentSize))
+            seg.rotation = 0
         }
     }
 

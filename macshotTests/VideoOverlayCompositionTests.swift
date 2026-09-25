@@ -143,6 +143,33 @@ final class VideoOverlayCompositionTests: XCTestCase {
         XCTAssertEqual(built.duration, 2, accuracy: 0.01, "an unreadable overlay must not fail the whole composition")
     }
 
+    // MARK: - Persistence (rotation)
+
+    func testRotationRoundTrips() throws {
+        let segment = VideoOverlaySegment(kind: .image, fileName: "a.png", displayName: "a.png", startTime: 0,
+                                          duration: 2, mediaDuration: 0, mediaSize: CGSize(width: 10, height: 10),
+                                          rect: CGRect(x: 0.1, y: 0.1, width: 0.2, height: 0.2), rotation: .pi / 4)
+        let project = VideoProject(sourceDuration: 10, look: VideoLook())
+        project.overlays = [segment]
+        let copy = try XCTUnwrap(project.copy())
+        XCTAssertEqual(copy.encoded(), project.encoded())
+        XCTAssertEqual(copy.overlays[0].rotation, .pi / 4, accuracy: 1e-9)
+    }
+
+    /// A project saved before overlay rotation existed has no `rotation` key
+    /// at all — must decode to 0 (no rotation), not fail the whole overlay.
+    func testRotationDecodesToZeroWhenAbsent() throws {
+        let json = """
+        {"sourceDuration": 5, "overlays": [
+          {"kind": "image", "fileName": "a.png", "displayName": "a.png", "startTime": 0,
+           "duration": 2, "mediaDuration": 0, "mediaSize": {"width": 10, "height": 10},
+           "rect": {"x": 0.1, "y": 0.1, "width": 0.2, "height": 0.2}}
+        ]}
+        """
+        let project = try XCTUnwrap(VideoProject.decode(Data(json.utf8)))
+        XCTAssertEqual(project.overlays.first?.rotation, 0)
+    }
+
     // MARK: Rendering placement — synthetic CIImages, no video decode needed
 
     private let contentSize = CGSize(width: 400, height: 200)
@@ -225,6 +252,35 @@ final class VideoOverlayCompositionTests: XCTestCase {
         let image = VideoSceneRenderer.render(content: content, time: 1, scene: snapshot(layout, overlays: [overlay]),
                                               censors: [], texts: [], compositionTime: 1)
         assertColor(pixel(image, 50, 50), 255, 0, 0)
+    }
+
+    /// `rotation` turns the overlay about its own rect's center, pre-camera,
+    /// in canvas-pixel space — same rule the annotation stage transform uses
+    /// (see `VideoSceneRendererTests.testNinetyDegreeRotationSwingsLayersAroundThePivot`).
+    /// A 90° (clockwise, as seen on screen) turn swings an off-center marker
+    /// from due east of the rect's center to due south of it.
+    func testOverlayRotationTurnsAboutItsOwnRectCenter() {
+        let layout = layout()
+        // A square 100x100-canvas-pixel rect centered on the 400x200
+        // canvas's own center (200, 100), holding a square 100x100 media
+        // (scale factor 1, so the marker's offset survives unscaled) with a
+        // small green marker 30px east of its center, red elsewhere.
+        let red = CIImage(color: CIColor(red: 1, green: 0, blue: 0)).cropped(to: CGRect(x: 0, y: 0, width: 100, height: 100))
+        let marker = CIImage(color: CIColor(red: 0, green: 1, blue: 0)).cropped(to: CGRect(x: 75, y: 45, width: 10, height: 10))
+        let media = marker.composited(over: red)
+        let overlay = VideoOverlayLayer(id: UUID(), trackID: nil, stillImage: media, uprightTransform: .identity,
+            rect: CGRect(x: 0.375, y: 0.25, width: 0.25, height: 0.5), compStart: 0, duration: 5,
+            opacity: 1, fadeIn: 0, fadeOut: 0, rotation: .pi / 2)
+        let image = VideoSceneRenderer.render(content: content, time: 1, scene: snapshot(layout, overlays: [overlay]),
+                                              censors: [], texts: [], compositionTime: 1)
+        // rect (0.375, 0.25, 0.25, 0.5) on a 400x200 canvas -> canvas pixels
+        // (150, 50, 100, 100), center (200, 100) — matching the media's own
+        // 1:1 scale, the marker (media-local center (80, 50), 30px east of
+        // the media's own center (50, 50)) sits 30px east of the rect's
+        // center before rotation. Rotated 90° clockwise, east -> south.
+        assertColor(pixel(image, 200, 130), 0, 255, 0)
+        // Its old (unrotated) east-of-center spot is red now.
+        assertColor(pixel(image, 230, 100), 255, 0, 0)
     }
 
     /// Timing lives on the composition clock, not source/asset time.

@@ -120,9 +120,12 @@ nonisolated final class VideoOverlayLayer: @unchecked Sendable {
     let opacity: Double
     let fadeIn: Double
     let fadeOut: Double
+    /// Radians, clockwise as seen on screen, about `rect`'s own center.
+    let rotation: Double
 
     init(id: UUID, trackID: Int32?, stillImage: CIImage?, uprightTransform: CGAffineTransform,
-         rect: CGRect, compStart: Double, duration: Double, opacity: Double, fadeIn: Double, fadeOut: Double) {
+         rect: CGRect, compStart: Double, duration: Double, opacity: Double, fadeIn: Double, fadeOut: Double,
+         rotation: Double = 0) {
         self.id = id
         self.trackID = trackID
         self.stillImage = stillImage
@@ -133,6 +136,7 @@ nonisolated final class VideoOverlayLayer: @unchecked Sendable {
         self.opacity = opacity
         self.fadeIn = fadeIn
         self.fadeOut = fadeOut
+        self.rotation = rotation
     }
 
     /// Opacity at composition-clock `compTime`; 0 outside `[compStart, compStart + duration)`.
@@ -253,6 +257,14 @@ nonisolated enum VideoSceneRenderer {
 
         // 4. Output-space overlays: text boxes follow content through the camera.
         let cameraTransform = camera.transform(canvasSize: layout.canvasSize)
+        // Same camera transform, re-expressed for Core Image's bottom-left
+        // space (`coreImageTransform` is an exact flip-conjugate, not an
+        // approximation — see its doc comment). Placements that need to
+        // rotate about a pivot (annotation drawings, overlay rotation) build
+        // their whole transform in CI space so the rotation step operates on
+        // a genuine pixel grid; everything else keeps using `cameraTransform`
+        // directly on a top-left rect, unchanged.
+        let cameraTransformCI = coreImageTransform(cameraTransform, height: H)
         for text in texts {
             let opacity = text.opacity(at: time)
             guard opacity > 0.001 else { continue }
@@ -268,17 +280,34 @@ nonisolated enum VideoSceneRenderer {
         // 4a. Media overlays — placed exactly like text boxes, but timed on
         // the composition (output) clock rather than source time, so they
         // keep animating over a freeze and aren't sped up by a speed segment.
+        // Rotation (if any) is about the overlay's own rect center, applied
+        // pre-camera in canvas-pixel space — same rule the annotation group
+        // transform below uses.
         for overlay in scene.overlays {
             let opacity = overlay.opacity(atComposition: compositionTime)
             guard opacity > 0.001 else { continue }
             guard let frame = overlay.trackID != nil ? overlayFrames[overlay.id] : overlay.stillImage else { continue }
             let extent = frame.extent
             guard extent.width > 0, extent.height > 0 else { continue }
-            let r = layout.canvasRect(forContent: overlay.rect).applying(cameraTransform)
-            let out = CGRect(x: r.minX, y: H - r.maxY, width: r.width, height: r.height)
-            guard out.width > 1, out.height > 1 else { continue }
-            let transform = CGAffineTransform(scaleX: out.width / extent.width, y: out.height / extent.height)
-                .concatenating(CGAffineTransform(translationX: out.minX, y: out.minY))
+            let r0 = layout.canvasRect(forContent: overlay.rect)
+            let preCameraCI = CGRect(x: r0.minX, y: H - r0.maxY, width: r0.width, height: r0.height)
+            guard preCameraCI.width > 1, preCameraCI.height > 1 else { continue }
+            var transform = CGAffineTransform(scaleX: preCameraCI.width / extent.width, y: preCameraCI.height / extent.height)
+                .concatenating(CGAffineTransform(translationX: preCameraCI.minX, y: preCameraCI.minY))
+            if overlay.rotation != 0 {
+                let center = CGPoint(x: preCameraCI.midX, y: preCameraCI.midY)
+                // Negated: `rotation` is clockwise-as-seen-on-screen (the
+                // stage's convention, a plain rotation matrix in its
+                // top-left/y-down space), but this step runs in CI's
+                // bottom-left/y-up space, where the same matrix reads
+                // counter-clockwise — see `placeAnnotationLayer`'s longer
+                // version of this note.
+                transform = transform
+                    .concatenating(CGAffineTransform(translationX: -center.x, y: -center.y))
+                    .concatenating(CGAffineTransform(rotationAngle: -CGFloat(overlay.rotation)))
+                    .concatenating(CGAffineTransform(translationX: center.x, y: center.y))
+            }
+            transform = transform.concatenating(cameraTransformCI)
             composed = withOpacity(frame.transformed(by: transform), opacity).composited(over: composed)
         }
 
@@ -286,7 +315,7 @@ nonisolated enum VideoSceneRenderer {
         // text, drawn above it, in drawing (z) order.
         for layer in annotationLayers {
             guard let placed = placeAnnotationLayer(layer, time: time, layout: layout,
-                                                     cameraTransform: cameraTransform, H: H) else { continue }
+                                                     cameraTransformCI: cameraTransformCI, H: H) else { continue }
             composed = placed.composited(over: composed)
         }
 
@@ -309,13 +338,28 @@ nonisolated enum VideoSceneRenderer {
     }
 
     /// Places one animated annotation layer for this frame: reveal mask (if
-    /// a `draw`/`wipe` is mid-animation), pop scale about its own center,
-    /// slide offset, then the same content-rect → canvas-rect → camera
-    /// placement text boxes use. `nil` when the layer isn't visible this
-    /// frame or its output rect is degenerate.
+    /// a `draw`/`wipe` is mid-animation), the segment's own offset/scale/
+    /// rotation about the drawing's pivot, pop scale about the layer's own
+    /// (now possibly rotated) placed center, slide offset, then the camera.
+    /// `nil` when the layer isn't visible this frame or its placement is
+    /// degenerate.
+    ///
+    /// Built as one affine-transform pipeline rather than the axis-aligned
+    /// "content rect → canvas rect → camera" rect math the rest of the
+    /// renderer uses, because a rotated placement can't be represented as a
+    /// `CGRect` (rotating a rect and reading back `minX`/`maxY` loses the
+    /// rotation). Everything below happens in Core Image's bottom-left
+    /// space, which — like the top-left canvas-pixel space `canvasRect`
+    /// returns — is a genuine pixel grid: scaling and rotating there never
+    /// shears, unlike content-normalized fractions (non-square unless the
+    /// source is). `cameraTransformCI` is `camera.transform(canvasSize:)`
+    /// re-expressed for this space (see the call site's comment); composing
+    /// it after the group transform is exactly equivalent to the old
+    /// per-rect "apply camera, then flip" order, so a segment with identity
+    /// offset/scale/rotation places pixel-for-pixel like before.
     private static func placeAnnotationLayer(_ layer: EffectsCompositionInstruction.AnnotationLayerSnapshot,
                                              time: Double, layout: VideoSceneLayout,
-                                             cameraTransform: CGAffineTransform, H: CGFloat) -> CIImage? {
+                                             cameraTransformCI: CGAffineTransform, H: CGFloat) -> CIImage? {
         let motion = layer.motionState(at: time)
         guard motion.opacity > 0.001 else { return nil }
 
@@ -325,7 +369,9 @@ nonisolated enum VideoSceneRenderer {
 
         // Reveal mask — only while a `draw`/`wipe` is actually mid-animation
         // (`VideoAnnotationMotion` returns nil progress otherwise), so a
-        // fully-drawn or not-yet-started frame skips the mask entirely.
+        // fully-drawn or not-yet-started frame skips the mask entirely. This
+        // happens in the layer's own local pixel space, before any placement
+        // transform, so it's unaffected by the group transform below.
         if let progress = motion.revealProgress, let reveal = layer.reveal,
            let mask = VideoAnnotationRevealMask.build(reveal: reveal, progress: progress, pixelSize: extent.size) {
             image = maskedByAlpha(image, CIImage(cgImage: mask))
@@ -334,14 +380,47 @@ nonisolated enum VideoSceneRenderer {
             image = maskedByAlpha(image, CIImage(cgImage: mask))
         }
 
-        let r = layout.canvasRect(forContent: layer.rect).applying(cameraTransform)
-        let out = CGRect(x: r.minX, y: H - r.maxY, width: r.width, height: r.height)
-        guard out.width > 1, out.height > 1 else { return nil }
+        // Pre-camera placement of this layer's own (untransformed) content
+        // rect, in CI space.
+        let r0 = layout.canvasRect(forContent: layer.rect)
+        let preCameraCI = CGRect(x: r0.minX, y: H - r0.maxY, width: r0.width, height: r0.height)
+        guard preCameraCI.width > 0, preCameraCI.height > 0 else { return nil }
+        var transform = CGAffineTransform(scaleX: preCameraCI.width / extent.width, y: preCameraCI.height / extent.height)
+            .concatenating(CGAffineTransform(translationX: preCameraCI.minX, y: preCameraCI.minY))
 
-        var transform = CGAffineTransform(scaleX: out.width / extent.width, y: out.height / extent.height)
-            .concatenating(CGAffineTransform(translationX: out.minX, y: out.minY))
+        // Segment-level offset/scale/rotation, about the drawing's pivot, in
+        // the same pre-camera CI space.
+        if layer.offset != .zero || layer.scale != 1 || layer.rotation != 0 {
+            let pivotTopLeft = layout.canvasPoint(forContent: layer.pivot)
+            let pivotCI = CGPoint(x: pivotTopLeft.x, y: H - pivotTopLeft.y)
+            // A pure translation: the linear part of `canvasPoint(forContent:)`
+            // applied to the offset vector (the difference cancels its
+            // constant/translate part), so this follows crop/zoom exactly
+            // like any other content-normalized rect origin does.
+            let origin = layout.canvasPoint(forContent: .zero)
+            let offsetTopLeft = layout.canvasPoint(forContent: layer.offset)
+            let offsetCI = CGPoint(x: offsetTopLeft.x - origin.x, y: -(offsetTopLeft.y - origin.y))
+            transform = transform
+                .concatenating(CGAffineTransform(translationX: -pivotCI.x, y: -pivotCI.y))
+                // Negated: `rotation` is clockwise-as-seen-on-screen (a plain
+                // rotation matrix in the stage's top-left/y-down space), but
+                // this step runs in CI's bottom-left/y-up space, where the
+                // same matrix reads counter-clockwise — flipping one axis
+                // flips the handedness of "positive angle."
+                .concatenating(CGAffineTransform(rotationAngle: -CGFloat(layer.rotation)))
+                .concatenating(CGAffineTransform(scaleX: CGFloat(layer.scale), y: CGFloat(layer.scale)))
+                .concatenating(CGAffineTransform(translationX: pivotCI.x, y: pivotCI.y))
+                .concatenating(CGAffineTransform(translationX: offsetCI.x, y: offsetCI.y))
+        }
+
+        transform = transform.concatenating(cameraTransformCI)
+
         if motion.scale != 1 {
-            let center = CGPoint(x: out.midX, y: out.midY)
+            // The layer's own placed center — an affine map (rotation
+            // included) always sends a rect's midpoint to the transformed
+            // rect's midpoint, so this is exactly where this layer now sits,
+            // group transform and camera included.
+            let center = CGPoint(x: extent.midX, y: extent.midY).applying(transform)
             transform = transform
                 .concatenating(CGAffineTransform(translationX: -center.x, y: -center.y))
                 .concatenating(CGAffineTransform(scaleX: motion.scale, y: motion.scale))
@@ -349,9 +428,13 @@ nonisolated enum VideoSceneRenderer {
         }
         if motion.slideOffset != 0 {
             // Entrance rises from below: shift down (negative Y, CI is
-            // y-up) by the fraction of canvas height, easing to 0.
+            // y-up) by the fraction of canvas height, easing to 0. Applied
+            // in absolute canvas space (not rotated with the drawing) —
+            // it's an entrance effect, not part of the drawing's own frame.
             transform = transform.concatenating(CGAffineTransform(translationX: 0, y: -motion.slideOffset * H))
         }
+        let bounds = extent.applying(transform)
+        guard bounds.width > 1, bounds.height > 1 else { return nil }
         return withOpacity(image.transformed(by: transform), motion.opacity)
     }
 

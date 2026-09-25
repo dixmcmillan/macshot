@@ -897,3 +897,7 @@
 "Opacity" = "불투명도";
 "Reset Size" = "크기 재설정";
 "Opaque" = "불투명";
+"Transform" = "변형";
+"Scale" = "배율";
+"Rotation" = "회전";
+"Reset Transform" = "변형 재설정";

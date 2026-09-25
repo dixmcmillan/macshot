@@ -528,12 +528,28 @@ final class VideoEditorWindowController: NSWindowController, NSWindowDelegate {
     /// segment's start (the moment it was originally drawn over) so the
     /// canvas matches what the user drew on, then writes the result back as
     /// one undo step. An empty result (everything deleted) removes the segment.
+    ///
+    /// The stage's `offset` is baked into the annotations before opening
+    /// (`Annotation.move`, converting the content-normalized offset to
+    /// canvas points — bottom-left/y-up, so a positive content-space
+    /// downward offset is a *negative* canvas-point dy) and reset to zero:
+    /// otherwise a moved drawing would reopen looking unmoved (the editor
+    /// only ever shows the annotations themselves, not the stage transform)
+    /// and then jump back to its offset position on close. `scale`/`rotation`
+    /// stay as segment-level transform — after editing, the pivot is simply
+    /// recomputed from the new drawing, which is an acceptable reset of
+    /// "what point it scales/rotates about" for a shape that just changed.
     func editAnnotation(id: UUID) {
         guard !isAnnotatorOpen, let segment = editorDocument.project.annotations.first(where: { $0.id == id }) else { return }
         playback.pause()
         isAnnotatorOpen = true
         let canvasSize = segment.canvasSize
+        let bakedOffset = segment.offset
         let startingAnnotations = segment.annotations
+        if bakedOffset != .zero {
+            let delta = VideoAnnotationSegment.canvasDelta(forContentOffset: bakedOffset, canvasSize: canvasSize)
+            for annotation in startingAnnotations { annotation.move(dx: delta.x, dy: delta.y) }
+        }
         grabFrame(at: segment.startTime) { [weak self] cgImage in
             guard let self else { return }
             guard let cgImage else {
@@ -551,6 +567,7 @@ final class VideoEditorWindowController: NSWindowController, NSWindowDelegate {
                         project.annotations.removeAll { $0.id == id }
                     } else if let data = AnnotationSerializer.encode(result),
                               let seg = project.annotations.first(where: { $0.id == id }) {
+                        seg.offset = .zero
                         // The annotation count feeds into `holdTime` (stagger
                         // multiplies by count - 1), so adding or removing
                         // items here can move it — keep an attached freeze
@@ -845,6 +862,15 @@ final class VideoEditorWindowController: NSWindowController, NSWindowDelegate {
     func handleKeyDown(_ event: NSEvent) -> Bool {
         if let responder = window?.firstResponder as? NSTextView, responder.isEditable { return false }
         let mods = KeyboardShortcutMatcher.modifiers(in: event)
+        // Arrows already play/scrub the video (below) at this same window
+        // level. A spatial item (annotation/overlay) also wants arrows to
+        // nudge it — those only take over while the stage itself has focus
+        // and something spatial is selected, so playback scrubbing from
+        // anywhere else in the window (the common case) is unaffected.
+        if [123, 124, 125, 126].contains(event.keyCode), window?.firstResponder === stage.overlay,
+           stage.overlay.nudgeSelection(keyCode: event.keyCode, shift: mods.contains(.shift)) {
+            return true
+        }
         switch event.keyCode {
         case 49 where mods.isEmpty: playback.togglePlay(); return true
         case 123: mods.contains(.shift) ? seekBy(-1) : playback.step(frames: -1); return true

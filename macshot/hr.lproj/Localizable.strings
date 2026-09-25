@@ -895,3 +895,7 @@
 "Opacity" = "Neprozirnost";
 "Reset Size" = "Vrati veličinu";
 "Opaque" = "Neprozirno";
+"Transform" = "Transformacija";
+"Scale" = "Mjerilo";
+"Rotation" = "Rotacija";
+"Reset Transform" = "Poništi transformaciju";

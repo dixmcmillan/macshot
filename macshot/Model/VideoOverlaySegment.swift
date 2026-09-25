@@ -43,10 +43,14 @@ final class VideoOverlaySegment: Codable {
     var opacity: Double
     var fadeIn: Double
     var fadeOut: Double
+    /// Radians, clockwise as seen on screen, about `rect`'s own center. 0 =
+    /// no rotation. Independent of `rect`'s aspect-locked move/resize.
+    var rotation: Double
 
     init(id: UUID = UUID(), kind: Kind, fileName: String, displayName: String, startTime: Double,
          duration: Double, mediaStart: Double = 0, mediaDuration: Double, mediaSize: CGSize,
-         rect: CGRect, opacity: Double = 1, fadeIn: Double = defaultFade, fadeOut: Double = defaultFade) {
+         rect: CGRect, opacity: Double = 1, fadeIn: Double = defaultFade, fadeOut: Double = defaultFade,
+         rotation: Double = 0) {
         self.id = id
         self.kind = kind
         self.fileName = fileName
@@ -60,11 +64,12 @@ final class VideoOverlaySegment: Codable {
         self.opacity = opacity
         self.fadeIn = fadeIn
         self.fadeOut = fadeOut
+        self.rotation = rotation
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, kind, fileName, displayName, startTime, duration, mediaStart, mediaDuration, mediaSize
-        case rect, opacity, fadeIn, fadeOut
+        case rect, opacity, fadeIn, fadeOut, rotation
     }
 
     init(from decoder: Decoder) throws {
@@ -88,6 +93,8 @@ final class VideoOverlaySegment: Codable {
         opacity = alpha.isFinite ? min(1, max(0, alpha)) : 1
         fadeIn = c.decode(.fadeIn, or: Self.defaultFade)
         fadeOut = c.decode(.fadeOut, or: Self.defaultFade)
+        let decodedRotation = c.decode(.rotation, or: 0.0)
+        rotation = decodedRotation.isFinite ? decodedRotation : 0
     }
 
     func encode(to encoder: Encoder) throws {
@@ -105,6 +112,7 @@ final class VideoOverlaySegment: Codable {
         try c.encode(opacity, forKey: .opacity)
         try c.encode(fadeIn, forKey: .fadeIn)
         try c.encode(fadeOut, forKey: .fadeOut)
+        try c.encode(rotation, forKey: .rotation)
     }
 
     /// Longest the overlay can play without running out of media. Images

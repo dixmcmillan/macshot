@@ -40,6 +40,10 @@ final class VideoRenderPlanner {
         let spec: VideoAnnotationRasterizer.Spec
         let base: CIImage?
         let layers: [AnnotationLayerCache]
+        /// Center of the union of `layers`' content rects — the drawing's
+        /// pivot for the segment's stage transform. `nil` (falls back to the
+        /// canvas center) when there are no per-annotation layers.
+        let pivot: CGPoint
     }
     private var annotationCache: [UUID: AnnotationCacheEntry] = [:]
     private var cameraAsset: AVAsset?
@@ -187,7 +191,8 @@ final class VideoRenderPlanner {
                 else { continue }
                 result.append(VideoOverlayLayer(id: segment.id, trackID: placement.trackID, stillImage: nil,
                     uprightTransform: upright.coreImageTransform, rect: segment.rect, compStart: placement.compStart,
-                    duration: segment.duration, opacity: segment.opacity, fadeIn: segment.fadeIn, fadeOut: segment.fadeOut))
+                    duration: segment.duration, opacity: segment.opacity, fadeIn: segment.fadeIn, fadeOut: segment.fadeOut,
+                    rotation: segment.rotation))
             case .image:
                 guard let compStart = VideoCompositionBuilder.compositionTime(forSource: segment.startTime, timeMap: timeMap),
                       let url = document.overlayURL(for: segment) else { continue }
@@ -202,7 +207,7 @@ final class VideoRenderPlanner {
                 }
                 result.append(VideoOverlayLayer(id: segment.id, trackID: nil, stillImage: image,
                     uprightTransform: .identity, rect: segment.rect, compStart: compStart, duration: segment.duration,
-                    opacity: segment.opacity, fadeIn: segment.fadeIn, fadeOut: segment.fadeOut))
+                    opacity: segment.opacity, fadeIn: segment.fadeIn, fadeOut: segment.fadeOut, rotation: segment.rotation))
             }
         }
         for key in Array(overlayImageCache.keys) where !liveImages.contains(key) { overlayImageCache.removeValue(forKey: key) }
@@ -290,24 +295,41 @@ final class VideoRenderPlanner {
                 let layers = rendered.layers.map {
                     AnnotationLayerCache(image: CIImage(cgImage: $0.image), rect: $0.contentRect, reveal: $0.reveal)
                 }
-                entry = AnnotationCacheEntry(spec: spec, base: base, layers: layers)
+                let pivot = rendered.pivot ?? CGPoint(x: 0.5, y: 0.5)
+                entry = AnnotationCacheEntry(spec: spec, base: base, layers: layers, pivot: pivot)
                 annotationCache[segment.id] = entry
             }
             if let base = entry.base {
                 result.append(.init(segmentID: segment.id, startTime: segment.startTime, endTime: segment.endTime,
                                     rect: full, image: base, layerIndex: 0, fadeIn: segment.fadeIn, fadeOut: segment.fadeOut,
-                                    entrance: .fade, exit: .fade, stagger: 0, reveal: nil))
+                                    entrance: .fade, exit: .fade, stagger: 0, reveal: nil,
+                                    pivot: entry.pivot, offset: segment.offset, scale: segment.scale, rotation: segment.rotation))
             }
             for (index, layer) in entry.layers.enumerated() {
                 result.append(.init(segmentID: segment.id, startTime: segment.startTime, endTime: segment.endTime,
                                     rect: layer.rect, image: layer.image, layerIndex: index,
                                     fadeIn: segment.fadeIn, fadeOut: segment.fadeOut,
                                     entrance: segment.entrance, exit: segment.exit, stagger: segment.stagger,
-                                    reveal: layer.reveal))
+                                    reveal: layer.reveal,
+                                    pivot: entry.pivot, offset: segment.offset, scale: segment.scale, rotation: segment.rotation))
             }
         }
         for key in Array(annotationCache.keys) where !live.contains(key) { annotationCache.removeValue(forKey: key) }
         return result
+    }
+
+    /// The drawing's pivot (center of the union of its layers' tight content
+    /// bounds) and that same union rect, both content-normalized — what the
+    /// stage needs to draw/hit-test the annotation's transform handles
+    /// without re-rasterizing. Reads the cache `annotationLayers(project:layout:hidden:)`
+    /// already populated for this frame; `nil` before the segment has ever
+    /// rendered (in practice, always populated once selected — selecting an
+    /// annotation seeks to a frame where it's visible).
+    func annotationBounds(segmentID: UUID) -> (pivot: CGPoint, contentRect: CGRect)? {
+        guard let entry = annotationCache[segmentID] else { return nil }
+        let rects = entry.layers.map(\.rect)
+        guard let union = rects.dropFirst().reduce(rects.first, { $0?.union($1) }) else { return nil }
+        return (entry.pivot, union)
     }
 
     /// Timeline duration after cuts, speed and freezes within the trim.

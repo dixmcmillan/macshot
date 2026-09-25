@@ -107,7 +107,7 @@ final class VideoStageView: NSView {
     private func updateCameraSuspension() {
         let spatial: Bool
         switch document.selection {
-        case .zoom?, .censor?, .text?, .overlay?: spatial = true
+        case .zoom?, .censor?, .text?, .overlay?, .annotation?: spatial = true
         default: spatial = false
         }
         let suspend = (spatial && !isPlaying) || isCropping
@@ -127,11 +127,11 @@ final class VideoStageView: NSView {
         // While playing, a click pauses: editing happens on a still frame.
         if isPlaying, !isCropping { playback.pause(); return }
         overlay.endTextEditing(commit: true)
-        // Annotations have no stage handles (`VideoStageOverlay.currentRect()`
-        // returns nil for them), so a click here — unlike zoom/censor/text,
-        // which the overlay itself intercepts — always reaches the stage.
-        // Double-clicking the selected drawing opens it for editing instead
-        // of clearing the selection.
+        // Normally `VideoStageOverlay` claims clicks over its own handles/box
+        // (including the double-click-to-edit case for annotations). This is
+        // a fallback for the rare frame where an annotation is selected but
+        // hasn't rasterized yet (`VideoRenderPlanner.annotationBounds`
+        // returns nil), so the overlay reports no current item to hit-test.
         if event.clickCount == 2, case .annotation(let id)? = document.selection {
             (window?.windowController as? VideoEditorWindowController)?.editAnnotation(id: id)
             return
@@ -150,8 +150,19 @@ final class VideoStageOverlay: NSView {
     private let document: VideoEditorDocument
     var mode: Mode = .selection { didSet { needsDisplay = true } }
 
-    private enum Handle { case body, n, s, e, w, ne, nw, se, sw }
+    private enum Handle { case body, n, s, e, w, ne, nw, se, sw, rotate }
     private var drag: (handle: Handle, startRect: CGRect, startPoint: NSPoint)?
+    /// Drag state for the rotatable items (annotations, overlays): unlike
+    /// `drag`, corner handles scale uniformly about the item's own pivot
+    /// instead of resizing freely/aspect-locked, and there's a rotation
+    /// handle. Model values are captured once at mouse-down and every
+    /// `mouseDragged` recomputes an absolute new value from them (never
+    /// accumulates deltas), matching how `drag`'s `startRect` is used.
+    private var rotatableDrag: (handle: Handle, startPoint: NSPoint, startViewRect: CGRect, startRotation: CGFloat,
+                                annotationPivotContent: CGPoint?, annotationStartOffset: CGPoint,
+                                annotationStartScale: Double, overlayStartRect: CGRect)?
+    /// How far above the box's rotated top edge the rotation handle floats.
+    private static let rotationHandleDistance: CGFloat = 26
     private var textEditor: InlineVideoTextView?
     private var textEditorScroll: NSScrollView?
     private var editingTextID: UUID?
@@ -184,8 +195,22 @@ final class VideoStageOverlay: NSView {
                       width: r.width / c.width, height: r.height / c.height)
     }
 
-    /// The edited item's rect in normalized canvas coordinates.
-    private func currentRect() -> (CGRect, NSColor, String)? {
+    /// The edited item's un-rotated box, in normalized canvas coordinates,
+    /// plus its rotation if it has one. `rotation == nil` (zoom, censor,
+    /// text, crop) keeps the plain rect-based drawing/hit-testing/dragging
+    /// below unchanged; annotations and overlays go through the rotatable
+    /// path instead, with only corner (uniform-scale) handles — no free or
+    /// edge resize — plus a rotation handle.
+    private struct EditedItem {
+        var rect: CGRect
+        var color: NSColor
+        var label: String
+        var rotation: CGFloat?
+    }
+
+    private var stagePlanner: VideoRenderPlanner? { stagePlayback?.planner }
+
+    private func currentItem() -> EditedItem? {
         guard let layout else { return nil }
         let canvas = layout.canvasSize
         func sceneRect(forContent r: CGRect) -> CGRect {
@@ -194,7 +219,7 @@ final class VideoStageOverlay: NSView {
                           width: pixels.width / canvas.width, height: pixels.height / canvas.height)
         }
         if mode == .crop {
-            return (document.project.crop, VideoEditorStyle.accent, L("Crop"))
+            return EditedItem(rect: document.project.crop, color: VideoEditorStyle.accent, label: L("Crop"), rotation: nil)
         }
         let p = document.project
         switch document.selection {
@@ -204,40 +229,52 @@ final class VideoStageOverlay: NSView {
             let side = 1 / z.zoomLevel
             let label = z.followsCursor ? String(format: L("%.1f× · follows pointer"), z.zoomLevel)
                                         : String(format: "%.1f×", z.zoomLevel)
-            return (CGRect(x: f.x - side / 2, y: f.y - side / 2, width: side, height: side), VideoEditorStyle.zoom, label)
+            return EditedItem(rect: CGRect(x: f.x - side / 2, y: f.y - side / 2, width: side, height: side),
+                              color: VideoEditorStyle.zoom, label: label, rotation: nil)
         case .censor(let id)?:
             guard let c = p.censors.first(where: { $0.id == id }) else { return nil }
-            return (sceneRect(forContent: c.rect), VideoEditorStyle.censor, "")
+            return EditedItem(rect: sceneRect(forContent: c.rect), color: VideoEditorStyle.censor, label: "", rotation: nil)
         case .text(let id)?:
             guard let t = p.texts.first(where: { $0.id == id }) else { return nil }
-            return (sceneRect(forContent: t.rect), VideoEditorStyle.text, "")
+            return EditedItem(rect: sceneRect(forContent: t.rect), color: VideoEditorStyle.text, label: "", rotation: nil)
         case .overlay(let id)?:
             guard let o = p.overlays.first(where: { $0.id == id }) else { return nil }
-            return (sceneRect(forContent: o.rect), VideoEditorStyle.overlay, "")
+            return EditedItem(rect: sceneRect(forContent: o.rect), color: VideoEditorStyle.overlay, label: "",
+                              rotation: CGFloat(o.rotation))
+        case .annotation(let id)?:
+            guard let seg = p.annotations.first(where: { $0.id == id }),
+                  let bounds = stagePlanner?.annotationBounds(segmentID: id) else { return nil }
+            // The drawing's current (offset-shifted) pivot and (scale-grown)
+            // box, both still content-normalized — `sceneRect` below carries
+            // them through crop/camera the same affine way any other rect
+            // gets placed, so the scaling here is safe (it isn't a rotation,
+            // which would need pixel space — see `VideoSceneRenderer`).
+            let pivot = CGPoint(x: bounds.pivot.x + seg.offset.x, y: bounds.pivot.y + seg.offset.y)
+            let scale = CGFloat(seg.scale)
+            let box = CGRect(x: pivot.x - bounds.contentRect.width * scale / 2, y: pivot.y - bounds.contentRect.height * scale / 2,
+                             width: bounds.contentRect.width * scale, height: bounds.contentRect.height * scale)
+            return EditedItem(rect: sceneRect(forContent: box), color: VideoEditorStyle.accent, label: "",
+                              rotation: CGFloat(seg.rotation))
         default:
             return nil
         }
     }
 
-    /// Overlays keep their media's aspect ratio; zoom windows keep the
-    /// canvas's. Both resize uniformly from corner handles about the
-    /// opposite corner — `nil` means free (unconstrained) resizing.
+    /// Zoom windows keep the canvas's aspect, resizing uniformly from corner
+    /// handles about the opposite corner. `nil` means free (unconstrained)
+    /// resizing (censor, text). Annotations and overlays never reach this —
+    /// they're rotatable, so `currentItem()` returns non-nil `rotation` and
+    /// the corner-handle behavior comes from `RotatedBoxEditing` instead.
     private var lockedAspect: CGFloat? {
-        guard mode == .selection, let layout else { return nil }
-        switch document.selection {
-        case .zoom?: return 1
-        case .overlay(let id)?:
-            guard let o = document.project.overlays.first(where: { $0.id == id }) else { return nil }
-            return VideoOverlayEditing.normalizedAspect(mediaSize: o.mediaSize, canvasSize: layout.canvasSize)
-        default: return nil
-        }
+        guard mode == .selection, case .zoom? = document.selection else { return nil }
+        return 1
     }
 
     // MARK: Drawing
 
     override func draw(_ dirtyRect: NSRect) {
-        guard !hidesForPlayback, let (rect, color, label) = currentRect() else { return }
-        let r = viewRect(normalized: rect)
+        guard !hidesForPlayback, let item = currentItem() else { return }
+        let r = viewRect(normalized: item.rect)
         if mode == .crop || (document.selection.map { if case .zoom = $0 { return true }; return false } ?? false) {
             // Dim everything outside the box.
             let outside = NSBezierPath(rect: canvasRect)
@@ -245,38 +282,69 @@ final class VideoStageOverlay: NSView {
             NSColor(white: 0, alpha: 0.45).setFill()
             outside.fill()
         }
-        let border = NSBezierPath(rect: r.insetBy(dx: -0.5, dy: -0.5))
-        border.lineWidth = 2
-        color.setStroke()
-        border.stroke()
-        if mode == .crop {
-            // Rule-of-thirds guides.
-            let guides = NSBezierPath()
-            for i in 1...2 {
-                let x = r.minX + r.width * CGFloat(i) / 3, y = r.minY + r.height * CGFloat(i) / 3
-                guides.move(to: NSPoint(x: x, y: r.minY)); guides.line(to: NSPoint(x: x, y: r.maxY))
-                guides.move(to: NSPoint(x: r.minX, y: y)); guides.line(to: NSPoint(x: r.maxX, y: y))
+        if let rotation = item.rotation {
+            let corners = RotatedBoxEditing.corners(of: r, rotation: rotation)
+            let border = NSBezierPath()
+            border.move(to: corners[0])
+            for c in corners.dropFirst() { border.line(to: c) }
+            border.close()
+            border.lineWidth = 2
+            item.color.setStroke()
+            border.stroke()
+            // Stem connecting the rotated top edge's midpoint to the
+            // rotation handle, so the handle reads as part of the box.
+            let topMid = RotatedBoxEditing.rotate(NSPoint(x: r.midX, y: r.minY), around: RotatedBoxEditing.center(of: r), by: rotation)
+            let handle = RotatedBoxEditing.rotationHandlePosition(for: r, rotation: rotation, distance: Self.rotationHandleDistance)
+            let stem = NSBezierPath()
+            stem.move(to: topMid)
+            stem.line(to: handle)
+            stem.lineWidth = 1.5
+            item.color.setStroke()
+            stem.stroke()
+            for (handleKind, point) in rotatableHandlePoints(for: r, rotation: rotation) {
+                let radius: CGFloat = handleKind == .rotate ? 6 : 5
+                let knob = NSRect(x: point.x - radius, y: point.y - radius, width: radius * 2, height: radius * 2)
+                NSColor.white.setFill()
+                NSBezierPath(ovalIn: knob).fill()
+                item.color.setStroke()
+                let ring = NSBezierPath(ovalIn: knob)
+                ring.lineWidth = 1.5
+                ring.stroke()
             }
-            NSColor(white: 1, alpha: 0.3).setStroke()
-            guides.lineWidth = 1
-            guides.stroke()
+        } else {
+            let border = NSBezierPath(rect: r.insetBy(dx: -0.5, dy: -0.5))
+            border.lineWidth = 2
+            item.color.setStroke()
+            border.stroke()
+            if mode == .crop {
+                // Rule-of-thirds guides.
+                let guides = NSBezierPath()
+                for i in 1...2 {
+                    let x = r.minX + r.width * CGFloat(i) / 3, y = r.minY + r.height * CGFloat(i) / 3
+                    guides.move(to: NSPoint(x: x, y: r.minY)); guides.line(to: NSPoint(x: x, y: r.maxY))
+                    guides.move(to: NSPoint(x: r.minX, y: y)); guides.line(to: NSPoint(x: r.maxX, y: y))
+                }
+                NSColor(white: 1, alpha: 0.3).setStroke()
+                guides.lineWidth = 1
+                guides.stroke()
+            }
+            for (_, point) in handles(for: r) {
+                let knob = NSRect(x: point.x - 5, y: point.y - 5, width: 10, height: 10)
+                NSColor.white.setFill()
+                NSBezierPath(ovalIn: knob).fill()
+                item.color.setStroke()
+                let ring = NSBezierPath(ovalIn: knob)
+                ring.lineWidth = 1.5
+                ring.stroke()
+            }
         }
-        for (_, point) in handles(for: r) {
-            let knob = NSRect(x: point.x - 5, y: point.y - 5, width: 10, height: 10)
-            NSColor.white.setFill()
-            NSBezierPath(ovalIn: knob).fill()
-            color.setStroke()
-            let ring = NSBezierPath(ovalIn: knob)
-            ring.lineWidth = 1.5
-            ring.stroke()
-        }
-        if !label.isEmpty {
+        if !item.label.isEmpty {
             let attrs: [NSAttributedString.Key: Any] = [.font: VideoEditorStyle.font(11, .semibold), .foregroundColor: NSColor.white]
-            let size = (label as NSString).size(withAttributes: attrs)
+            let size = (item.label as NSString).size(withAttributes: attrs)
             let badge = NSRect(x: r.minX, y: max(canvasRect.minY, r.minY - size.height - 10), width: size.width + 14, height: size.height + 6)
-            color.setFill()
+            item.color.setFill()
             NSBezierPath(roundedRect: badge, xRadius: 5, yRadius: 5).fill()
-            (label as NSString).draw(at: NSPoint(x: badge.minX + 7, y: badge.minY + 3), withAttributes: attrs)
+            (item.label as NSString).draw(at: NSPoint(x: badge.minX + 7, y: badge.minY + 3), withAttributes: attrs)
         }
     }
 
@@ -290,36 +358,84 @@ final class VideoStageOverlay: NSView {
         return result
     }
 
+    /// Corner (uniform-scale) handles at their rotated positions, plus the
+    /// rotation handle — the full handle set for annotations and overlays.
+    private func rotatableHandlePoints(for r: NSRect, rotation: CGFloat) -> [(Handle, NSPoint)] {
+        let corners = RotatedBoxEditing.corners(of: r, rotation: rotation)
+        return [(.nw, corners[0]), (.ne, corners[1]), (.se, corners[2]), (.sw, corners[3]),
+                (.rotate, RotatedBoxEditing.rotationHandlePosition(for: r, rotation: rotation, distance: Self.rotationHandleDistance))]
+    }
+
     // MARK: Input
 
     /// Handles are hidden during playback, where the camera moves the content.
     private var hidesForPlayback: Bool { mode == .selection && stage?.isPlaying == true }
 
+    override var acceptsFirstResponder: Bool { true }
+
     override func hitTest(_ point: NSPoint) -> NSView? {
         if hidesForPlayback { return nil }
         let local = convert(point, from: superview)
         if let textEditorScroll, textEditorScroll.frame.contains(local) { return super.hitTest(point) }
-        guard let (rect, _, _) = currentRect() else { return nil }
-        let r = viewRect(normalized: rect).insetBy(dx: -8, dy: -8)
-        return r.contains(local) ? self : nil
+        guard let item = currentItem() else { return nil }
+        let r = viewRect(normalized: item.rect)
+        if let rotation = item.rotation {
+            if RotatedBoxEditing.contains(local, in: r.insetBy(dx: -8, dy: -8), rotation: rotation) { return self }
+            let handle = RotatedBoxEditing.rotationHandlePosition(for: r, rotation: rotation, distance: Self.rotationHandleDistance)
+            return hypot(handle.x - local.x, handle.y - local.y) < 12 ? self : nil
+        }
+        return r.insetBy(dx: -8, dy: -8).contains(local) ? self : nil
     }
 
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
-        guard let (rect, _, _) = currentRect() else { return }
-        let r = viewRect(normalized: rect)
-        if event.clickCount == 2, case .text(let id)? = document.selection {
-            beginTextEditing(id: id)
+        guard let item = currentItem() else { return }
+        if event.clickCount == 2 {
+            if case .text(let id)? = document.selection { beginTextEditing(id: id); return }
+            // Double-clicking a selected drawing opens it for editing
+            // instead of moving/scaling/rotating it.
+            if case .annotation(let id)? = document.selection {
+                (window?.windowController as? VideoEditorWindowController)?.editAnnotation(id: id)
+                return
+            }
+        }
+        window?.makeFirstResponder(self)
+        let r = viewRect(normalized: item.rect)
+        if let rotation = item.rotation {
+            let handle = rotatableHandlePoints(for: r, rotation: rotation).first { hypot($0.1.x - p.x, $0.1.y - p.y) < 10 }?.0
+                ?? (RotatedBoxEditing.contains(p, in: r, rotation: rotation) ? .body : nil)
+            guard let handle else { return }
+            var pivotContent: CGPoint?
+            var startOffset = CGPoint.zero, startScale = 1.0, overlayStartRect = CGRect.zero
+            switch document.selection {
+            case .annotation(let id)?:
+                if let seg = document.project.annotations.first(where: { $0.id == id }) {
+                    startOffset = seg.offset; startScale = seg.scale
+                }
+                pivotContent = stagePlanner?.annotationBounds(segmentID: id)?.pivot
+            case .overlay(let id)?:
+                if let o = document.project.overlays.first(where: { $0.id == id }) { overlayStartRect = o.rect }
+            default: break
+            }
+            rotatableDrag = (handle: handle, startPoint: p, startViewRect: r, startRotation: rotation,
+                             annotationPivotContent: pivotContent, annotationStartOffset: startOffset,
+                             annotationStartScale: startScale, overlayStartRect: overlayStartRect)
+            document.beginGesture()
             return
         }
         let handle = handles(for: r).first { hypot($0.1.x - p.x, $0.1.y - p.y) < 9 }?.0 ?? .body
-        drag = (handle, rect, p)
+        drag = (handle, item.rect, p)
         document.beginGesture()
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let drag else { return }
         let p = convert(event.locationInWindow, from: nil)
+        if let rd = rotatableDrag {
+            applyRotatableDrag(rd, to: p, snap: event.modifierFlags.contains(.shift))
+            needsDisplay = true
+            return
+        }
+        guard let drag else { return }
         let c = canvasRect
         let dx = (p.x - drag.startPoint.x) / c.width, dy = (p.y - drag.startPoint.y) / c.height
         var r = drag.startRect
@@ -336,9 +452,144 @@ final class VideoStageOverlay: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        if rotatableDrag != nil {
+            rotatableDrag = nil
+            document.endGesture()
+            return
+        }
         guard drag != nil else { return }
         drag = nil
         document.endGesture()
+    }
+
+    /// One drag on a rotatable item's corner (uniform scale about its own
+    /// pivot), rotation handle, or body (move) — recomputed as an absolute
+    /// new value from the captured mouse-down state every call, never
+    /// accumulated, matching `resized`'s pattern for the non-rotatable path.
+    private func applyRotatableDrag(_ rd: (handle: Handle, startPoint: NSPoint, startViewRect: CGRect, startRotation: CGFloat,
+                                          annotationPivotContent: CGPoint?, annotationStartOffset: CGPoint,
+                                          annotationStartScale: Double, overlayStartRect: CGRect),
+                                    to p: NSPoint, snap: Bool) {
+        let center = RotatedBoxEditing.center(of: rd.startViewRect)
+        switch rd.handle {
+        case .rotate:
+            applyRotation(Double(RotatedBoxEditing.rotation(fromCenter: center, to: p, snap: snap)))
+        case .body:
+            let c = canvasRect
+            applyMove(rd, dxScene: (p.x - rd.startPoint.x) / c.width, dyScene: (p.y - rd.startPoint.y) / c.height)
+        case .nw, .ne, .se, .sw:
+            let corners = RotatedBoxEditing.corners(of: rd.startViewRect, rotation: rd.startRotation)
+            let originalCorner: NSPoint
+            switch rd.handle {
+            case .nw: originalCorner = corners[0]
+            case .ne: originalCorner = corners[1]
+            case .se: originalCorner = corners[2]
+            default: originalCorner = corners[3]
+            }
+            applyScale(rd, factor: RotatedBoxEditing.cornerDragScale(pivot: center, originalCorner: originalCorner,
+                                                                     draggedPoint: p, range: 0.1...10))
+        default:
+            break
+        }
+    }
+
+    private func applyMove(_ rd: (handle: Handle, startPoint: NSPoint, startViewRect: CGRect, startRotation: CGFloat,
+                                  annotationPivotContent: CGPoint?, annotationStartOffset: CGPoint,
+                                  annotationStartScale: Double, overlayStartRect: CGRect),
+                           dxScene: CGFloat, dyScene: CGFloat) {
+        guard let layout else { return }
+        let startScene = normalized(viewRect: rd.startViewRect)
+        let newCenterScene = CGPoint(x: startScene.midX + dxScene, y: startScene.midY + dyScene)
+        switch document.selection {
+        case .overlay(let id)?:
+            let newRect = CGRect(x: startScene.minX + dxScene, y: startScene.minY + dyScene,
+                                 width: startScene.width, height: startScene.height)
+            let a = layout.contentNormalized(forScene: CGPoint(x: newRect.minX, y: newRect.minY))
+            let b = layout.contentNormalized(forScene: CGPoint(x: newRect.maxX, y: newRect.maxY))
+            document.edit([.render]) { project in
+                project.overlays.first { $0.id == id }?.rect =
+                    VideoProjectLimits.normalizedRect(CGRect(x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y))
+            }
+        case .annotation(let id)?:
+            guard let pivot = rd.annotationPivotContent else { return }
+            let newCenterContent = layout.contentNormalized(forScene: newCenterScene)
+            document.edit([.render]) { project in
+                project.annotations.first { $0.id == id }?.offset =
+                    CGPoint(x: newCenterContent.x - pivot.x, y: newCenterContent.y - pivot.y)
+            }
+        default:
+            break
+        }
+    }
+
+    private func applyScale(_ rd: (handle: Handle, startPoint: NSPoint, startViewRect: CGRect, startRotation: CGFloat,
+                                   annotationPivotContent: CGPoint?, annotationStartOffset: CGPoint,
+                                   annotationStartScale: Double, overlayStartRect: CGRect),
+                            factor: Double) {
+        switch document.selection {
+        case .overlay(let id)?:
+            document.edit([.render]) { project in
+                project.overlays.first { $0.id == id }?.rect =
+                    VideoProjectLimits.normalizedRect(VideoOverlayEditing.scaledRect(rd.overlayStartRect, by: CGFloat(factor)))
+            }
+        case .annotation(let id)?:
+            document.edit([.render]) { project in
+                project.annotations.first { $0.id == id }?.scale =
+                    VideoAnnotationSegment.clampedScale(rd.annotationStartScale * factor)
+            }
+        default:
+            break
+        }
+    }
+
+    private func applyRotation(_ radians: Double) {
+        switch document.selection {
+        case .overlay(let id)?:
+            document.edit([.render]) { project in project.overlays.first { $0.id == id }?.rotation = radians }
+        case .annotation(let id)?:
+            document.edit([.render]) { project in project.annotations.first { $0.id == id }?.rotation = radians }
+        default:
+            break
+        }
+    }
+
+    // MARK: Arrow-key nudge
+
+    /// Nudges the selected annotation/overlay by 1 source pixel (Shift: 10).
+    /// Left/right arrows are already bound to frame-step/seek at the editor
+    /// window level (`VideoEditorWindowController.handleKeyDown`), so this
+    /// only claims them while a spatial item is selected *and* the stage
+    /// itself is first responder — `handleKeyDown` checks both before this
+    /// ever runs, exactly like `VideoTimelineView`'s own `keyDown` claims
+    /// Delete only while the timeline has focus. Per CLAUDE.md, arrows are
+    /// compared by raw `keyCode` (layout-independent), not character.
+    func nudgeSelection(keyCode: UInt16, shift: Bool) -> Bool {
+        guard let layout, let selection = document.selection else { return false }
+        let amountSourcePixels: CGFloat = shift ? 10 : 1
+        guard let sourceDelta = RotatedBoxEditing.nudge(forArrowKeyCode: keyCode, amount: amountSourcePixels) else { return false }
+        // 1 source pixel -> content-normalized fraction of the content size.
+        let deltaContent = CGPoint(x: sourceDelta.x / max(layout.contentSize.width, 1),
+                                   y: sourceDelta.y / max(layout.contentSize.height, 1))
+        switch selection {
+        case .annotation(let id):
+            document.beginGesture()
+            document.edit([.render]) { project in
+                guard let seg = project.annotations.first(where: { $0.id == id }) else { return }
+                seg.offset = CGPoint(x: seg.offset.x + deltaContent.x, y: seg.offset.y + deltaContent.y)
+            }
+            document.endGesture()
+            return true
+        case .overlay(let id):
+            document.beginGesture()
+            document.edit([.render]) { project in
+                guard let o = project.overlays.first(where: { $0.id == id }) else { return }
+                o.rect = VideoProjectLimits.normalizedRect(o.rect.offsetBy(dx: deltaContent.x, dy: deltaContent.y))
+            }
+            document.endGesture()
+            return true
+        default:
+            return false
+        }
     }
 
     private func resized(_ start: CGRect, handle: Handle, dx: CGFloat, dy: CGFloat) -> CGRect {
@@ -352,7 +603,7 @@ final class VideoStageOverlay: NSView {
         case .ne: maxX += dx; minY += dy
         case .sw: minX += dx; maxY += dy
         case .se: maxX += dx; maxY += dy
-        case .body: break
+        case .body, .rotate: break
         }
         if let aspect = lockedAspect {
             // Resize uniformly about the opposite (anchor) corner, at the
@@ -413,10 +664,8 @@ final class VideoStageOverlay: NSView {
             document.edit([.render]) { project in
                 project.texts.first { $0.id == id }?.rect = VideoTextSegment.clampedRect(contentRect(rect))
             }
-        case .overlay(let id)?:
-            document.edit([.render]) { project in
-                project.overlays.first { $0.id == id }?.rect = VideoProjectLimits.normalizedRect(contentRect(rect))
-            }
+        // Overlays are rotatable (see `currentItem()`/`rotatableDrag`) and
+        // never reach this rect-only path.
         default:
             break
         }
@@ -427,8 +676,8 @@ final class VideoStageOverlay: NSView {
     func beginTextEditing(id: UUID) {
         endTextEditing(commit: true)
         guard let segment = document.project.texts.first(where: { $0.id == id }),
-              let (rect, _, _) = currentRect(), let layout else { return }
-        let frame = viewRect(normalized: rect)
+              let item = currentItem(), let layout else { return }
+        let frame = viewRect(normalized: item.rect)
         let displayedVideoHeight = canvasRect.height * (layout.videoRect.height / max(layout.crop.height, 0.01))
             / layout.canvasSize.height
         let fontSize = max(8, min(segment.fontSize * displayedVideoHeight / 1080, frame.height * 0.78))

@@ -895,3 +895,7 @@
 "Opacity" = "不透明度";
 "Reset Size" = "サイズをリセット";
 "Opaque" = "不透明";
+"Transform" = "変形";
+"Scale" = "拡大縮小";
+"Rotation" = "回転";
+"Reset Transform" = "変形をリセット";

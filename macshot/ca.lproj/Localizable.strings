@@ -897,3 +897,7 @@
 "Opacity" = "Opacitat";
 "Reset Size" = "Restableix la mida";
 "Opaque" = "Opac";
+"Transform" = "Transformació";
+"Scale" = "Escala";
+"Rotation" = "Rotació";
+"Reset Transform" = "Restableix la transformació";

@@ -113,3 +113,103 @@ enum VideoOverlayEditing {
         return false
     }
 }
+
+// MARK: - Rotated-box stage editing (annotation transform + overlay rotation)
+
+/// Pure geometry for direct-manipulating a rotated, uniformly-scaled box on
+/// the stage: hit-testing, handle placement, and the drag math for the
+/// corner (scale) and rotation handles. Shared by `VideoStageOverlay`'s
+/// annotation-transform and overlay-rotation handling, and kept separate
+/// from AppKit so it's exercised directly with XCTest.
+///
+/// `rotation` throughout is radians, **clockwise as seen on screen** — a
+/// plain `CGAffineTransform(rotationAngle:)`/`rotate(_:around:by:)` in the
+/// stage's own top-left, y-down view space already reads this way (see the
+/// derivation in `rotate(_:around:by:)`). The renderer negates the same
+/// value before applying it in Core Image's bottom-left, y-up space — see
+/// `VideoSceneRenderer.placeAnnotationLayer`.
+enum RotatedBoxEditing {
+    static func center(of rect: CGRect) -> CGPoint { CGPoint(x: rect.midX, y: rect.midY) }
+
+    /// Rotates `point` about `center` by `radians`, clockwise as seen on
+    /// screen in a top-left/y-down space: a point due "north" of `center`
+    /// (smaller y) moves towards "east" (larger x) as `radians` increases
+    /// from 0, matching how a rotation handle above a box is dragged.
+    static func rotate(_ point: CGPoint, around center: CGPoint, by radians: CGFloat) -> CGPoint {
+        guard radians != 0 else { return point }
+        let dx = point.x - center.x, dy = point.y - center.y
+        let c = cos(radians), s = sin(radians)
+        return CGPoint(x: center.x + dx * c - dy * s, y: center.y + dx * s + dy * c)
+    }
+
+    /// The four corners of `rect` (already centered on the box's pivot),
+    /// rotated about that center. Order: top-left, top-right, bottom-right,
+    /// bottom-left (view space, y-down).
+    static func corners(of rect: CGRect, rotation: CGFloat) -> [CGPoint] {
+        let c = center(of: rect)
+        return [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY),
+                CGPoint(x: rect.maxX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY)]
+            .map { rotate($0, around: c, by: rotation) }
+    }
+
+    /// True if `point` falls inside `rect` once rotated by `radians` about
+    /// its own center: rotate `point` the opposite way around that same
+    /// center and test against the plain, unrotated rect.
+    static func contains(_ point: CGPoint, in rect: CGRect, rotation: CGFloat) -> Bool {
+        rect.contains(rotate(point, around: center(of: rect), by: -rotation))
+    }
+
+    /// Where the rotation handle sits: `distance` above the box's rotated
+    /// top edge, i.e. offset "north" in the box's own rotated frame.
+    static func rotationHandlePosition(for rect: CGRect, rotation: CGFloat, distance: CGFloat) -> CGPoint {
+        rotate(CGPoint(x: rect.midX, y: rect.minY - distance), around: center(of: rect), by: rotation)
+    }
+
+    /// Nearest 15° step — Shift-snapped rotation drags.
+    static func snapped15(_ radians: CGFloat) -> CGFloat {
+        let step = CGFloat.pi / 12
+        return (radians / step).rounded() * step
+    }
+
+    /// New rotation while dragging the rotation handle from the box's
+    /// `center` towards `point`. The handle's rest position (straight above
+    /// center) is angle 0; a "compass bearing from north, clockwise" formula
+    /// (`atan2(east, north)` with `north` flipped for the y-down space)
+    /// gives exactly the clockwise-positive convention this type documents,
+    /// and is the exact inverse of `rotationHandlePosition`.
+    static func rotation(fromCenter center: CGPoint, to point: CGPoint, snap: Bool) -> CGFloat {
+        let east = point.x - center.x, north = -(point.y - center.y)
+        let angle = atan2(east, north)
+        return snap ? snapped15(angle) : angle
+    }
+
+    /// New uniform scale for a corner drag: how much farther `draggedPoint`
+    /// is from `pivot` than `originalCorner` was, as a plain distance ratio
+    /// (rotation doesn't change distance from the pivot, so it never enters
+    /// this calculation — dragging any corner of a rotated box scales it
+    /// uniformly about the pivot, same as an unrotated one).
+    static func cornerDragScale(pivot: CGPoint, originalCorner: CGPoint, draggedPoint: CGPoint,
+                                range: ClosedRange<Double>) -> Double {
+        let originalDistance = hypot(originalCorner.x - pivot.x, originalCorner.y - pivot.y)
+        guard originalDistance > 0.0001 else { return range.lowerBound }
+        let draggedDistance = hypot(draggedPoint.x - pivot.x, draggedPoint.y - pivot.y)
+        let ratio = Double(draggedDistance / originalDistance)
+        guard ratio.isFinite else { return range.lowerBound }
+        return min(range.upperBound, max(range.lowerBound, ratio))
+    }
+
+    /// Arrow-key nudge vector in view-space points for a raw `keyCode`
+    /// (macOS arrow codes: 123 left, 124 right, 125 down, 126 up — not to be
+    /// confused with USB HID or other platforms' codes); `nil` for anything
+    /// else. Per CLAUDE.md, arrows are compared by raw `keyCode`, not by
+    /// character, since they're layout-independent.
+    static func nudge(forArrowKeyCode keyCode: UInt16, amount: CGFloat) -> CGPoint? {
+        switch keyCode {
+        case 123: return CGPoint(x: -amount, y: 0)
+        case 124: return CGPoint(x: amount, y: 0)
+        case 125: return CGPoint(x: 0, y: amount)
+        case 126: return CGPoint(x: 0, y: -amount)
+        default: return nil
+        }
+    }
+}

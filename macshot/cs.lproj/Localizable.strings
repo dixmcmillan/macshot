@@ -895,3 +895,7 @@
 "Opacity" = "Krytí";
 "Reset Size" = "Obnovit velikost";
 "Opaque" = "Neprůhledné";
+"Transform" = "Transformace";
+"Scale" = "Měřítko";
+"Rotation" = "Otočení";
+"Reset Transform" = "Obnovit transformaci";
