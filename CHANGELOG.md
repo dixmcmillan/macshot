@@ -1,5 +1,21 @@
 # Changelog
 
+## [4.4.0-beta.4] - 2026-09-27
+
+### Added
+
+- **Press R to restore the last area**: on the capture screen, before selecting, R brings back your previous selection. Thanks @defia. (#359)
+- **More filename tokens and date folders**: `{app}`, `{yyyy}`, `{MM}`, `{dd}`, `{HH}`, `{mm}`, `{ss}` and `{ms}`, and a `/` in the template files screenshots into subfolders, e.g. `{yyyy}/{MM}/{dd}/{app}-{HH}.{mm}.{ss}`. Thanks @mdtoupin. (#422)
+
+### Improved
+
+- **Much faster capture on multiple displays**: displays are captured one after another, the one under the pointer first, and each appears as soon as it is ready (reported 4.2 s down to 0.2 s on four displays). Thanks @mjjjjaazing. (#349)
+
+### Changed
+
+- **macshot has a new developer signature.** After this update, macOS may ask you once to allow Screen Recording for macshot again (and Accessibility or Input Monitoring if you use element snapping, keystrokes or click highlights). Your settings, history and recordings stay as they are. If macshot already looks switched on in System Settings but capturing does not work, select macshot there, remove it with the minus button (−), then add it back with the plus button (+). Technical users can instead run `tccutil reset ScreenCapture com.sw33tlie.macshot.macshot` (offline version: `com.sw33tlie.macshot.offline`) and relaunch macshot.
+- The permission window now tells returning users how to remove and re-add macshot, since switching it off and on does not restore access after a signature change.
+
 ## [4.4.0-beta.3] - 2026-09-24
 
 ### Changed

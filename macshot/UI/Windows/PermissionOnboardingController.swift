@@ -38,7 +38,7 @@ class PermissionOnboardingController: NSWindowController {
     init(returningUser: Bool = PermissionOnboardingController.isReturningUser()) {
         isReturningUser = returningUser
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: returningUser ? 590 : 520),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: returningUser ? 610 : 520),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -89,7 +89,7 @@ class PermissionOnboardingController: NSWindowController {
 
         // Returning users: reassure, and give the fix for a stale entry that
         // still shows as on in System Settings.
-        let note = NSTextField(wrappingLabelWithString: L("After some updates, macOS asks you to allow macshot again. Your settings and captures are safe. If macshot is already on in the list, turn it off and on again."))
+        let note = NSTextField(wrappingLabelWithString: L("After some updates, macOS asks you to allow macshot again. Your settings and captures are safe. If macshot is already in the list, select it, click the minus button (−) to remove it, then click the plus button (+) and add macshot again."))
         note.font = NSFont.systemFont(ofSize: 12)
         note.textColor = .secondaryLabelColor
         note.alignment = .center

@@ -399,7 +399,7 @@
 "Welcome to macshot" = "Chào mừng đến với macshot";
 "Welcome back to macshot" = "Chào mừng bạn quay lại macshot";
 "Turn Screen Recording back on" = "Bật lại Ghi màn hình";
-"After some updates, macOS asks you to allow macshot again. Your settings and captures are safe. If macshot is already on in the list, turn it off and on again." = "Sau một số bản cập nhật, macOS sẽ yêu cầu bạn cho phép macshot lần nữa. Cài đặt và ảnh chụp của bạn vẫn an toàn. Nếu macshot đã được bật trong danh sách, hãy tắt rồi bật lại.";
+"After some updates, macOS asks you to allow macshot again. Your settings and captures are safe. If macshot is already in the list, select it, click the minus button (−) to remove it, then click the plus button (+) and add macshot again." = "Sau một số bản cập nhật, macOS sẽ yêu cầu bạn cho phép macshot lần nữa. Cài đặt và ảnh chụp của bạn vẫn an toàn. Nếu macshot đã có trong danh sách, hãy chọn nó, bấm nút trừ (−) để gỡ bỏ, rồi bấm nút cộng (+) và thêm lại macshot.";
 "macshot needs one permission" = "macshot cần một quyền";
 "Screen Recording not yet granted" = "Chưa cấp quyền Quay màn hình";
 "Screen Recording granted!" = "Đã cấp quyền Quay màn hình!";

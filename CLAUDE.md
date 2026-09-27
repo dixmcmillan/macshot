@@ -264,7 +264,7 @@ The video editor is built around `VideoEditorDocument` (one `VideoProject`: time
 - Upload: `uploadProvider` (imgbb/gdrive), `googleDriveRefreshToken`, `gdriveFolderName` (Drive destination folder, defaults to "macshot"), `uploadConfirmEnabled`
 
 ### Threading Model
-- **Capture:** Async/await TaskGroup for concurrent multi-display capture
+- **Capture:** Displays are captured one at a time, the one under the pointer first (on macOS 26 `replayd` serializes concurrent screenshot requests and charges far more per queued request). Each display's overlay is shown as soon as its capture lands; keyboard focus stays on the display with a selection, else the one under the pointer, and a partial failure falls back only for the displays not yet shown.
 - **Recording:** SCStream output on background thread, main actor for state updates
 - **Scroll capture:** Background throttle/settlement timers, serialized captureAndStitch
 - **OCR:** VNImageRequestHandler on background thread, results to main
@@ -275,7 +275,7 @@ The video editor is built around `VideoEditorDocument` (one `VideoProject`: time
 ## Features
 
 ### Core
-- Multi-screen capture (one overlay per screen, concurrent ScreenCaptureKit calls)
+- Multi-screen capture (one overlay per screen, pointer display first, each shown as it lands)
 - Rubber-band selection with 8-point resize handles
 - Full-screen capture (single click without drag)
 - Remember last selection rectangle
@@ -329,7 +329,7 @@ Copy to clipboard, Save to file (PNG/JPEG/HEIC/WebP), Pin (floating always-on-to
 - **Screenshot clipboard is image data only.** Never put a file URL on the pasteboard for a screenshot: it points into the sandbox, and Teams, Photopea and RDP clients prefer it over the image data but can't read it (#309, #393). PNG and TIFF are always present; the opt-in configured format (#373) is added first, never instead.
 - **Clipboard HTML is formatting-only.** Generate import markup through `ClipboardHTML` after local parsing with external entities disabled. Copy only supported tags and validated style values; never pass source markup, resource attributes, declarations or arbitrary CSS to AppKit's HTML importer. Apply rich-input byte limits before parsing and text limits before layout, preserving composed characters when truncating.
 - **Editor saves keep their original state.** Capture the image, cloned annotations, edit state and editor revision together before showing a save panel or starting an asynchronous output. Save completion must not combine an older image with current annotations, overwrite an already submitted newer history edit, mark subsequent edits clean, or close the editor after failure.
-- **Filenames are single components.** Both rendered templates and direct recording names use `FilenameSanitizer`. Template expansion is one pass: window titles containing `{date}` or `{random}` stay literal. Preserve complete Unicode characters while capping UTF-8 length, and sanitize again at the direct recording boundary.
+- **Filename components are sanitized one by one.** Both rendered templates and direct recording names use `FilenameSanitizer`. Template expansion is one pass: window titles containing `{date}` or `{random}` stay literal. Preserve complete Unicode characters while capping UTF-8 length, and sanitize again at the direct recording boundary. A `/` in an image filename template creates subfolders (`FilenameFormatter.formatRelativePath`): every component is sanitized separately, empty/`.`/`..` components are dropped so saves stay inside the save folder, and `ImageSaveService.createSubfolders` only creates folders below an existing save folder. Slashes inside token values (window titles, app names) never create folders.
 - **Report failures the user can't otherwise see.** A capture that fails to save or a recording that produces no file used to disappear silently (a `#if DEBUG` log at most). Anything that can lose a user's capture must surface: `ImageSaveService.onFailure` is wired to `AppDelegate.showFailureToast(_:)` at launch, and the recording completion handler reports its error the same way. Never swallow such a failure into an ignored `false` completion.
 - **Recording originals are durable.** `RecordingSessionStore` gives each take a unique Application Support folder. Do not delete or sweep these on editor close or failed export. `AtomicMediaSave` stages output on the destination volume and publishes it atomically; keep heavy copying off the main thread and preserve the old destination on failure.
 - **Exports outlive their windows.** Register media exports, audio mixes and recording copies with `MediaExportCoordinator`. Retain their input/directory leases until the worker actually completes, including cancellation. Gate atomic publication with `MediaExportCancellation.beginPublication` so a completed save cannot be reported as cancelled. `ApplicationTerminationCoordinator` keeps the normal event loop running while work drains, then retries Quit; `terminateLater` stalled MainActor completions in the native macOS 27 probe.

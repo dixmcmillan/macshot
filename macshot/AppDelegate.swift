@@ -111,6 +111,14 @@ private let sigtermHandler: @convention(c) (Int32) -> Void = { _ in
     kill(getpid(), SIGTERM)
 }
 
+/// Tracks whether the first (cursor-display) overlay has already been shown,
+/// so only that one marks the capture INTERACTIVE.
+private final class ProgressiveOverlayState {
+    var shownAny = false
+    /// Controllers already showing their display's capture.
+    var installed = Set<ObjectIdentifier>()
+}
+
 private final class CaptureTimingTrace: @unchecked Sendable {
     private struct Entry {
         let label: String
@@ -1406,6 +1414,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
                 controller.timingMark = { label in trace.mark(label) }
             }
             controller.capturedWindowTitle = capturedWindowTitle
+            controller.capturedAppName = FilenameFormatter.appNameForTemplate(previousApp?.localizedName)
             if pendingRecordMode { controller.setAutoRecordMode() }
             if pendingOCRMode { controller.setAutoOCRMode() }
             if pendingTranslateOverlayMode { controller.setAutoTranslateOverlayMode(targetLang: pendingTranslateOverlayLang) }
@@ -1441,13 +1450,44 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         // transient UI (menus, Spotlight) is preserved. If SCK fails or can't
         // cover every display, fall back to the synchronous CGWindowListCreateImage
         // path (which manually composites the cursor from the prebuilt context).
+        let progressive = ProgressiveOverlayState()
         Task { [weak self] in
             trace?.mark("background screenshot begin")
             var captures: [ScreenCapture]? = nil
             if #available(macOS 14.0, *) {
+                // Install each display's overlay as soon as its own capture
+                // lands, cursor display first, instead of waiting for all of them.
                 captures = await ScreenCaptureManager.captureAllScreensImmediatelySCK(
-                    timing: { label in trace?.mark(label) })
+                    priorityScreen: mouseScreen,
+                    timing: { label in trace?.mark(label) },
+                    onCapture: { capture in
+                        guard let self = self, self.isCapturing,
+                              self.captureSessionID == sessionID else { return }
+                        guard let controller = controllers.first(where: { $0.screen === capture.screen })
+                        else { return }
+                        let isFirst = !progressive.shownAny
+                        progressive.shownAny = true
+                        progressive.installed.insert(ObjectIdentifier(controller))
+                        self.installAndShowOverlays(
+                            captures: [capture],
+                            controllers: [controller],
+                            mouseScreen: mouseScreen,
+                            applyFullScreen: didApplyFullScreen,
+                            applyFullScreenRecord: didApplyFullScreenRecord,
+                            autoStartRecord: didApplyFullScreenRecordAutoStart,
+                            markInteractive: isFirst)
+                        // Showing a later display makes it key; keep the keyboard
+                        // on the display the user is working on.
+                        if !isFirst { self.refocusOverlay(among: controllers, installed: progressive.installed) }
+                    })
             }
+            if let captures, progressive.shownAny {
+                trace?.mark("background screenshot end count=\(captures.count) (progressive)")
+                return
+            }
+            // No SCK result, or some displays failed after others were already
+            // shown: capture the rest with the fallback and install only those.
+            let remaining = controllers.filter { !progressive.installed.contains(ObjectIdentifier($0)) }
             let finalCaptures = captures ?? ScreenCaptureManager.captureAllScreensImmediately(
                 context: captureContext,
                 timing: { label in trace?.mark(label) })
@@ -1455,6 +1495,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             await MainActor.run {
                 guard let self = self, self.isCapturing,
                       self.captureSessionID == sessionID else { return }
+                if progressive.shownAny {
+                    self.installAndShowOverlays(
+                        captures: finalCaptures.filter { capture in remaining.contains { $0.screen == capture.screen } },
+                        controllers: remaining,
+                        mouseScreen: mouseScreen,
+                        applyFullScreen: didApplyFullScreen,
+                        applyFullScreenRecord: didApplyFullScreenRecord,
+                        autoStartRecord: didApplyFullScreenRecordAutoStart,
+                        markInteractive: false)
+                    self.refocusOverlay(among: controllers, installed: nil)
+                    return
+                }
                 self.installAndShowOverlays(
                     captures: finalCaptures,
                     controllers: controllers,
@@ -1466,6 +1518,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         }
     }
 
+    /// Keeps keyboard focus on the overlay the user is working on while other
+    /// displays appear: the one with a selection, else the one under the pointer.
+    private func refocusOverlay(among controllers: [OverlayWindowController], installed: Set<ObjectIdentifier>?) {
+        let shown = controllers.filter { installed?.contains(ObjectIdentifier($0)) ?? true }
+        if let selected = shown.first(where: { $0.hasSelection }) {
+            selected.makeKey()
+            return
+        }
+        let pointer = NSEvent.mouseLocation
+        shown.first { $0.screen.frame.contains(pointer) }?.makeKey()
+    }
+
     /// Install screenshots into the pre-built overlay controllers and order
     /// them front. This is the single moment the overlay becomes visible.
     private func installAndShowOverlays(
@@ -1474,7 +1538,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         mouseScreen: NSScreen?,
         applyFullScreen: Bool,
         applyFullScreenRecord: Bool,
-        autoStartRecord: Bool
+        autoStartRecord: Bool,
+        markInteractive: Bool = true
     ) {
         if captures.isEmpty {
             captureTimingTrace?.mark("no captures returned — bailing out")
@@ -1514,6 +1579,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             }
         }
 
+        guard markInteractive else { return }
         captureTimingTrace?.mark("overlays installed and shown — INTERACTIVE")
         // Beacon: schedule periodic main-runloop marks so we can see if the
         // runloop is alive between INTERACTIVE and the first user event.
@@ -2439,6 +2505,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
 // MARK: - OverlayWindowControllerDelegate
 
 extension AppDelegate: OverlayWindowControllerDelegate {
+    func overlayDidRequestRestoreLastSelection(_ controller: OverlayWindowController) {
+        restoreLastSelection(controllers: overlayControllers)
+    }
+
     func overlayDidCancel(_ controller: OverlayWindowController) {
         // If the user cancels while in recording setup (before capture started),
         // just dismiss. If recording is actively capturing, stop it.

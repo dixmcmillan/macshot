@@ -400,7 +400,7 @@
 "Welcome to macshot" = "Selamat datang di macshot";
 "Welcome back to macshot" = "Selamat datang kembali di macshot";
 "Turn Screen Recording back on" = "Nyalakan lagi Perekaman Layar";
-"After some updates, macOS asks you to allow macshot again. Your settings and captures are safe. If macshot is already on in the list, turn it off and on again." = "Setelah beberapa pembaruan, macOS meminta Anda mengizinkan macshot lagi. Pengaturan dan tangkapan Anda aman. Jika macshot sudah menyala di daftar, matikan lalu nyalakan lagi.";
+"After some updates, macOS asks you to allow macshot again. Your settings and captures are safe. If macshot is already in the list, select it, click the minus button (−) to remove it, then click the plus button (+) and add macshot again." = "Setelah beberapa pembaruan, macOS meminta Anda mengizinkan macshot lagi. Pengaturan dan tangkapan Anda aman. Jika macshot sudah ada di daftar, pilih, klik tombol minus (−) untuk menghapusnya, lalu klik tombol plus (+) dan tambahkan macshot lagi.";
 "macshot needs one permission" = "macshot memerlukan satu izin";
 "Screen Recording not yet granted" = "Perekaman Layar belum diberikan";
 "Screen Recording granted!" = "Perekaman Layar diberikan!";

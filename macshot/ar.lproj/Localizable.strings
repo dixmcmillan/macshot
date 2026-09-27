@@ -393,7 +393,7 @@
 "Welcome to macshot" = "مرحبًا بك في macshot";
 "Welcome back to macshot" = "مرحبًا بعودتك إلى macshot";
 "Turn Screen Recording back on" = "أعد تشغيل تسجيل الشاشة";
-"After some updates, macOS asks you to allow macshot again. Your settings and captures are safe. If macshot is already on in the list, turn it off and on again." = "بعد بعض التحديثات، يطلب منك macOS السماح لـ macshot مرة أخرى. إعداداتك ولقطاتك آمنة. إذا كان macshot مفعّلًا بالفعل في القائمة، فأوقفه ثم فعّله مجددًا.";
+"After some updates, macOS asks you to allow macshot again. Your settings and captures are safe. If macshot is already in the list, select it, click the minus button (−) to remove it, then click the plus button (+) and add macshot again." = "بعد بعض التحديثات، يطلب منك macOS السماح لـ macshot مرة أخرى. إعداداتك ولقطاتك آمنة. إذا كان macshot موجودًا بالفعل في القائمة، فحدّده وانقر زر الطرح (−) لإزالته، ثم انقر زر الإضافة (+) وأضف macshot مجددًا.";
 "macshot needs one permission" = "يحتاج macshot إلى إذن واحد";
 "Screen Recording not yet granted" = "لم يتم منح إذن تسجيل الشاشة بعد";
 "Screen Recording granted!" = "تم منح إذن تسجيل الشاشة!";
