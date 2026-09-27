@@ -899,3 +899,21 @@
 "Scale" = "Mierka";
 "Rotation" = "Otočenie";
 "Reset Transform" = "Obnoviť transformáciu";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Animovať";
+"Keyframe the transform and opacity over time." = "Postupom času kľúčujte transformáciu a krytie.";
+"Stop Animating?" = "Zastaviť animáciu?";
+"This removes its keyframes and keeps the current position as its transform." = "Týmto sa odstránia jeho kľúčové snímky a aktuálna poloha sa zachová ako jeho transformácia.";
+"Stop Animating" = "Zastaviť animáciu";
+"Previous Keyframe" = "Predchádzajúci kľúčový snímok";
+"Add Keyframe" = "Pridať kľúčový snímok";
+"Remove Keyframe" = "Odstrániť kľúčový snímok";
+"Next Keyframe" = "Nasledujúci kľúčový snímok";
+"Easing" = "Plynulosť";
+"Linear" = "Lineárny";
+"Ease In" = "Zrýchlenie na začiatku";
+"Ease Out" = "Spomalenie na konci";
+"Ease In/Out" = "Zrýchlenie a spomalenie";
+"Hold" = "Podržať";
+"Delete Keyframe" = "Odstrániť kľúčový snímok";

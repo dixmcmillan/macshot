@@ -61,6 +61,10 @@ final class VideoAnnotationSegment: Codable {
     var scale: Double
     /// Radians, clockwise as seen on screen. 0 = no rotation.
     var rotation: Double
+    /// Animated transform over the segment (seconds from `startTime`, source
+    /// clock). When present it replaces `offset`/`scale`/`rotation` and its
+    /// opacity multiplies the drawing's.
+    var keyframes: [VideoKeyframe] = []
 
     init(id: UUID = UUID(), startTime: Double, endTime: Double, canvasSize: CGSize,
          annotationData: Data, fadeIn: Double = defaultFade, fadeOut: Double = defaultFade,
@@ -83,7 +87,7 @@ final class VideoAnnotationSegment: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, startTime, endTime, canvasSize, annotationData, fadeIn, fadeOut, entrance, exit, stagger
-        case offset, scale, rotation
+        case offset, scale, rotation, keyframes
     }
 
     init(from decoder: Decoder) throws {
@@ -108,6 +112,7 @@ final class VideoAnnotationSegment: Codable {
         scale = Self.clampedScale(c.decode(.scale, or: 1))
         let decodedRotation = c.decode(.rotation, or: 0.0)
         rotation = decodedRotation.isFinite ? decodedRotation : 0
+        keyframes = VideoKeyframes.clamped(c.decode(.keyframes, or: [VideoKeyframe]()), duration: max(0, endTime - startTime))
     }
 
     func encode(to encoder: Encoder) throws {
@@ -125,6 +130,17 @@ final class VideoAnnotationSegment: Codable {
         try c.encode(offset, forKey: .offset)
         try c.encode(scale, forKey: .scale)
         try c.encode(rotation, forKey: .rotation)
+        try c.encode(keyframes, forKey: .keyframes)
+    }
+
+    /// The static transform as a keyframe value.
+    var staticTransform: VideoTransformValue {
+        VideoTransformValue(offset: offset, scale: scale, rotation: rotation, opacity: 1)
+    }
+
+    /// Transform at source time `t`: keyframed when animated, else static.
+    func transform(at t: Double) -> VideoTransformValue {
+        VideoKeyframes.sample(keyframes, at: t - startTime) ?? staticTransform
     }
 
     static func clampedStagger(_ s: Double) -> Double { s.isFinite ? min(maxStagger, max(0, s)) : 0 }

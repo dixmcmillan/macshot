@@ -899,3 +899,21 @@
 "Scale" = "Skala";
 "Rotation" = "Rotasi";
 "Reset Transform" = "Setel Ulang Transformasi";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Animasikan";
+"Keyframe the transform and opacity over time." = "Beri keyframe pada transformasi dan opasitas seiring waktu.";
+"Stop Animating?" = "Hentikan animasi?";
+"This removes its keyframes and keeps the current position as its transform." = "Ini menghapus keyframe-nya dan mempertahankan posisi saat ini sebagai transformasinya.";
+"Stop Animating" = "Hentikan Animasi";
+"Previous Keyframe" = "Keyframe Sebelumnya";
+"Add Keyframe" = "Tambahkan Keyframe";
+"Remove Keyframe" = "Hapus Keyframe";
+"Next Keyframe" = "Keyframe Berikutnya";
+"Easing" = "Easing";
+"Linear" = "Linear";
+"Ease In" = "Ease In";
+"Ease Out" = "Ease Out";
+"Ease In/Out" = "Ease In/Out";
+"Hold" = "Tahan";
+"Delete Keyframe" = "Hapus Keyframe";

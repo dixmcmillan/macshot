@@ -899,3 +899,21 @@
 "Scale" = "Мащаб";
 "Rotation" = "Завъртане";
 "Reset Transform" = "Нулиране на трансформацията";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Анимиране";
+"Keyframe the transform and opacity over time." = "Задайте ключови кадри за трансформацията и непрозрачността във времето.";
+"Stop Animating?" = "Спиране на анимацията?";
+"This removes its keyframes and keeps the current position as its transform." = "Това премахва ключовите му кадри и запазва текущата позиция като негова трансформация.";
+"Stop Animating" = "Спиране на анимацията";
+"Previous Keyframe" = "Предишен ключов кадър";
+"Add Keyframe" = "Добавяне на ключов кадър";
+"Remove Keyframe" = "Премахване на ключовия кадър";
+"Next Keyframe" = "Следващ ключов кадър";
+"Easing" = "Плавност";
+"Linear" = "Линейно";
+"Ease In" = "Плавно навлизане";
+"Ease Out" = "Плавно излизане";
+"Ease In/Out" = "Плавно навлизане/излизане";
+"Hold" = "Задържане";
+"Delete Keyframe" = "Изтриване на ключовия кадър";

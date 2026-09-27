@@ -899,3 +899,21 @@
 "Scale" = "拡大縮小";
 "Rotation" = "回転";
 "Reset Transform" = "変形をリセット";
+
+/* Keyframe animation (video editor) */
+"Animate" = "アニメーション";
+"Keyframe the transform and opacity over time." = "変形と不透明度を時間経過に沿ってキーフレーム化します。";
+"Stop Animating?" = "アニメーションを停止しますか？";
+"This removes its keyframes and keeps the current position as its transform." = "キーフレームを削除し、現在の位置を変形として保持します。";
+"Stop Animating" = "アニメーションを停止";
+"Previous Keyframe" = "前のキーフレーム";
+"Add Keyframe" = "キーフレームを追加";
+"Remove Keyframe" = "キーフレームを削除";
+"Next Keyframe" = "次のキーフレーム";
+"Easing" = "イージング";
+"Linear" = "リニア";
+"Ease In" = "イーズイン";
+"Ease Out" = "イーズアウト";
+"Ease In/Out" = "イーズイン/アウト";
+"Hold" = "ホールド";
+"Delete Keyframe" = "キーフレームを削除";

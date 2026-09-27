@@ -901,3 +901,21 @@
 "Scale" = "缩放";
 "Rotation" = "旋转";
 "Reset Transform" = "重置变换";
+
+/* Keyframe animation (video editor) */
+"Animate" = "动画";
+"Keyframe the transform and opacity over time." = "随时间为变换和不透明度设置关键帧。";
+"Stop Animating?" = "停止动画？";
+"This removes its keyframes and keeps the current position as its transform." = "这将移除其关键帧，并将当前位置保留为其变换。";
+"Stop Animating" = "停止动画";
+"Previous Keyframe" = "上一个关键帧";
+"Add Keyframe" = "添加关键帧";
+"Remove Keyframe" = "移除关键帧";
+"Next Keyframe" = "下一个关键帧";
+"Easing" = "缓动";
+"Linear" = "线性";
+"Ease In" = "缓入";
+"Ease Out" = "缓出";
+"Ease In/Out" = "缓入/缓出";
+"Hold" = "保持";
+"Delete Keyframe" = "删除关键帧";

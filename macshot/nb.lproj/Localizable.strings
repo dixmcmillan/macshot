@@ -899,3 +899,21 @@
 "Scale" = "Skala";
 "Rotation" = "Rotasjon";
 "Reset Transform" = "Tilbakestill transformasjon";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Animer";
+"Keyframe the transform and opacity over time." = "Angi nøkkelbilder for transformasjonen og ugjennomsiktigheten over tid.";
+"Stop Animating?" = "Stoppe animasjonen?";
+"This removes its keyframes and keeps the current position as its transform." = "Dette fjerner nøkkelbildene og beholder gjeldende posisjon som transformasjonen.";
+"Stop Animating" = "Stopp animasjon";
+"Previous Keyframe" = "Forrige nøkkelbilde";
+"Add Keyframe" = "Legg til nøkkelbilde";
+"Remove Keyframe" = "Fjern nøkkelbilde";
+"Next Keyframe" = "Neste nøkkelbilde";
+"Easing" = "Glatting";
+"Linear" = "Lineær";
+"Ease In" = "Glatt inn";
+"Ease Out" = "Glatt ut";
+"Ease In/Out" = "Glatt inn/ut";
+"Hold" = "Hold";
+"Delete Keyframe" = "Fjern nøkkelbilde";

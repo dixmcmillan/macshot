@@ -900,3 +900,21 @@
 "Reset Transform" = "Reset Transform";
 "Opaque" = "Opaque";
 "Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in." = "Draw In traces lines, arrows, freehand strokes and shape outlines as they enter; other items pop in.";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Animate";
+"Keyframe the transform and opacity over time." = "Keyframe the transform and opacity over time.";
+"Stop Animating?" = "Stop Animating?";
+"This removes its keyframes and keeps the current position as its transform." = "This removes its keyframes and keeps the current position as its transform.";
+"Stop Animating" = "Stop Animating";
+"Previous Keyframe" = "Previous Keyframe";
+"Add Keyframe" = "Add Keyframe";
+"Remove Keyframe" = "Remove Keyframe";
+"Next Keyframe" = "Next Keyframe";
+"Easing" = "Easing";
+"Linear" = "Linear";
+"Ease In" = "Ease In";
+"Ease Out" = "Ease Out";
+"Ease In/Out" = "Ease In/Out";
+"Hold" = "Hold";
+"Delete Keyframe" = "Delete Keyframe";

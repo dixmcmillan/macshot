@@ -65,6 +65,29 @@ enum VideoOverlayEditing {
         return CGRect(x: rect.midX - w / 2, y: rect.midY - h / 2, width: w, height: h)
     }
 
+    // MARK: Animated-overlay placement
+
+    /// `rect` after applying an animated transform's offset/scale "relative
+    /// to" it — see `VideoOverlaySegment.keyframes`'s doc comment: the offset
+    /// shifts the box (content-normalized, top-left origin, the same
+    /// convention as `rect`'s own origin), the scale grows/shrinks it about
+    /// its own center. Rotation isn't part of a rect; callers apply
+    /// `VideoTransformValue.rotation` separately (it replaces `rotation`,
+    /// it doesn't compose with it).
+    static func transformedRect(_ rect: CGRect, offset: CGPoint, scale: Double) -> CGRect {
+        let cx = rect.midX + offset.x, cy = rect.midY + offset.y
+        let w = rect.width * CGFloat(scale), h = rect.height * CGFloat(scale)
+        return CGRect(x: cx - w / 2, y: cy - h / 2, width: w, height: h)
+    }
+
+    /// The offset that places `rect`'s center at `newCenter` (content
+    /// space) — the inverse of `transformedRect`'s translation, used when a
+    /// drag on an animated overlay's displayed (already-offset) box needs to
+    /// be written back as a keyframe offset relative to the unmoved `rect`.
+    static func moveOffset(newCenter: CGPoint, rect: CGRect) -> CGPoint {
+        CGPoint(x: newCenter.x - rect.midX, y: newCenter.y - rect.midY)
+    }
+
     // MARK: Aspect-locked stage resize
 
     /// The canvas-normalized width/height ratio that reproduces `mediaSize`'s
@@ -111,6 +134,150 @@ enum VideoOverlayEditing {
             }
         }
         return false
+    }
+}
+
+// MARK: - Keyframe editing (auto-keying, navigator, trim-shift)
+
+/// Pure helpers for auto-keying transform edits and for navigating/trimming
+/// keyframes, shared by the stage, inspector and timeline so "animated" —
+/// `keyframes` non-empty — means the same thing everywhere, and so a partial
+/// edit (e.g. a move) never clobbers scale/rotation/opacity keyframed
+/// elsewhere. No AppKit, no `VideoEditorDocument`.
+enum VideoKeyframeEditing {
+
+    /// A segment is "animated" exactly when it has keyframes.
+    static func isAnimated(_ keyframes: [VideoKeyframe]) -> Bool { !keyframes.isEmpty }
+
+    /// A drawing's segment-local time (source clock): `sourceTime -
+    /// startTime`, clamped to `[0, duration]` — matches
+    /// `VideoAnnotationSegment.transform(at:)`'s own clamping via `sample`.
+    static func drawingLocalTime(sourceTime: Double, startTime: Double, duration: Double) -> Double {
+        guard duration.isFinite, duration > 0, sourceTime.isFinite else { return 0 }
+        return min(duration, max(0, sourceTime - startTime))
+    }
+
+    /// An overlay's segment-local time: OUTPUT/composition seconds since it
+    /// appeared — composition time of the playhead minus composition time of
+    /// `overlayStartTime` — via the playback's own source↔composition
+    /// mapping (injected so this stays pure and testable), clamped to
+    /// `[0, duration]`. See `VideoOverlaySegment`'s doc comment.
+    static func overlayLocalTime(sourceTime: Double, overlayStartTime: Double, duration: Double,
+                                 compositionTime: (Double) -> Double) -> Double {
+        guard duration.isFinite, duration > 0 else { return 0 }
+        let local = compositionTime(sourceTime) - compositionTime(overlayStartTime)
+        guard local.isFinite else { return 0 }
+        return min(duration, max(0, local))
+    }
+
+    /// The source time that lands exactly on an overlay's local `time` — the
+    /// inverse of `overlayLocalTime`, used to seek the playhead to a
+    /// keyframe (previous/next navigation, clicking a timeline diamond).
+    static func overlaySourceTime(forLocal time: Double, overlayStartTime: Double,
+                                  compositionTime: (Double) -> Double, sourceTime: (Double) -> Double) -> Double {
+        sourceTime(compositionTime(overlayStartTime) + time)
+    }
+
+    /// Where a keyframe diamond sits on the timeline: the pill's own layout
+    /// already mixes source `start` and (for overlays) output `duration`
+    /// directly (`end = start + duration`), so a keyframe's position uses
+    /// the same mixing for consistency with the pill and its trim handles,
+    /// rather than the precise composition-clock mapping the stage uses.
+    static func timelinePosition(itemStart: Double, keyframeTime: Double) -> Double { itemStart + keyframeTime }
+
+    /// The inverse of `timelinePosition`, for dragging a diamond.
+    static func keyframeTime(forTimelinePosition x: Double, itemStart: Double) -> Double { x - itemStart }
+
+    /// Folds `edit` into the value already in effect at `localTime` (so a
+    /// partial edit like "move" doesn't clobber scale/rotation/opacity
+    /// keyframed elsewhere), and writes the result as the keyframe at that
+    /// time — the shared "auto-key" behavior every transform edit uses once
+    /// a segment is animated.
+    static func autoKeyed(_ keyframes: [VideoKeyframe], at localTime: Double,
+                          applying edit: (inout VideoTransformValue) -> Void) -> [VideoKeyframe] {
+        var value = VideoKeyframes.sample(keyframes, at: localTime) ?? .identity
+        edit(&value)
+        return VideoKeyframes.setting(value, at: localTime, in: keyframes)
+    }
+
+    // MARK: Navigator
+
+    static func previousKeyframeTime(before time: Double, in keyframes: [VideoKeyframe]) -> Double? {
+        keyframes.map(\.time).filter { $0 < time - VideoKeyframes.timeTolerance }.max()
+    }
+
+    static func nextKeyframeTime(after time: Double, in keyframes: [VideoKeyframe]) -> Double? {
+        keyframes.map(\.time).filter { $0 > time + VideoKeyframes.timeTolerance }.min()
+    }
+
+    /// Whether a keyframe already sits at `time`, within tolerance.
+    static func hasKeyframe(at time: Double, in keyframes: [VideoKeyframe]) -> Bool {
+        keyframes.contains { abs($0.time - time) <= VideoKeyframes.timeTolerance }
+    }
+
+    /// The ◆ navigator button: removes the keyframe at `time` if one exists
+    /// — unless it's the only one, since a lone keyframe can only be cleared
+    /// by turning Animate off (with its confirmation) — else adds one with
+    /// the value already showing there.
+    static func togglingKeyframe(at time: Double, in keyframes: [VideoKeyframe]) -> [VideoKeyframe] {
+        if let i = keyframes.firstIndex(where: { abs($0.time - time) <= VideoKeyframes.timeTolerance }) {
+            guard keyframes.count > 1 else { return keyframes }
+            var result = keyframes
+            result.remove(at: i)
+            return result
+        }
+        let value = VideoKeyframes.sample(keyframes, at: time) ?? .identity
+        return VideoKeyframes.setting(value, at: time, in: keyframes)
+    }
+
+    /// Moves the keyframe with `id` to `time` (dragging its diamond).
+    static func movingKeyframe(id: UUID, to time: Double, in keyframes: [VideoKeyframe]) -> [VideoKeyframe] {
+        var result = keyframes
+        guard let i = result.firstIndex(where: { $0.id == id }) else { return result }
+        result[i].time = max(0, time)
+        return result.sorted { $0.time < $1.time }
+    }
+
+    static func deletingKeyframe(id: UUID, in keyframes: [VideoKeyframe]) -> [VideoKeyframe] {
+        keyframes.filter { $0.id != id }
+    }
+
+    /// The keyframe governing easing "at or before" `time` — the Easing
+    /// popup's selection, and `settingEasing`'s target.
+    static func keyframeAtOrBefore(_ time: Double, in keyframes: [VideoKeyframe]) -> VideoKeyframe? {
+        let candidates = keyframes.filter { $0.time <= time + VideoKeyframes.timeTolerance }
+        if let last = candidates.max(by: { $0.time < $1.time }) { return last }
+        return keyframes.min { $0.time < $1.time }
+    }
+
+    static func settingEasing(_ easing: VideoKeyframe.Easing, forKeyframeAtOrBefore time: Double,
+                              in keyframes: [VideoKeyframe]) -> [VideoKeyframe] {
+        guard let target = keyframeAtOrBefore(time, in: keyframes) else { return keyframes }
+        var result = keyframes
+        if let i = result.firstIndex(where: { $0.id == target.id }) { result[i].easing = easing }
+        return result
+    }
+
+    // MARK: Trim shift
+
+    /// Trimming a segment's start edge by `delta` seconds (positive = the
+    /// segment now starts `delta` later) keeps every keyframe at the same
+    /// *absolute* moment: subtract `delta` from each local time, and drop
+    /// any that now fall before the new start.
+    static func shiftedForStartTrim(_ keyframes: [VideoKeyframe], delta: Double) -> [VideoKeyframe] {
+        guard delta != 0 else { return keyframes }
+        return keyframes.compactMap { kf in
+            let t = kf.time - delta
+            guard t >= -VideoKeyframes.timeTolerance else { return nil }
+            var shifted = kf
+            shifted.time = max(0, t)
+            return shifted
+        }
+    }
+
+    /// Trimming a segment's end edge drops keyframes past the new duration.
+    static func trimmedForEndTrim(_ keyframes: [VideoKeyframe], newDuration: Double) -> [VideoKeyframe] {
+        keyframes.filter { $0.time <= newDuration + VideoKeyframes.timeTolerance }
     }
 }
 

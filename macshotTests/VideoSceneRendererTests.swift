@@ -234,7 +234,8 @@ final class VideoSceneRendererTests: XCTestCase {
     @MainActor
     private func annotationLayers(_ annotations: [Annotation], layout: VideoSceneLayout,
                                   offset: CGPoint = .zero, scale: Double = 1, rotation: Double = 0,
-                                  start: Double = 0, end: Double = 4) throws -> [EffectsCompositionInstruction.AnnotationLayerSnapshot] {
+                                  start: Double = 0, end: Double = 4,
+                                  keyframes: [VideoKeyframe] = []) throws -> [EffectsCompositionInstruction.AnnotationLayerSnapshot] {
         let segment = VideoAnnotationSegment(startTime: start, endTime: end, canvasSize: contentSize,
                                              annotationData: try XCTUnwrap(AnnotationSerializer.encode(annotations)),
                                              fadeIn: 0, fadeOut: 0, entrance: .none, exit: .none,
@@ -248,8 +249,148 @@ final class VideoSceneRendererTests: XCTestCase {
                 segmentID: segment.id, startTime: start, endTime: end, rect: layer.contentRect,
                 image: CIImage(cgImage: layer.image), layerIndex: index, fadeIn: 0, fadeOut: 0,
                 entrance: .none, exit: .none, stagger: 0, reveal: layer.reveal,
-                pivot: pivot, offset: segment.offset, scale: segment.scale, rotation: segment.rotation)
+                pivot: pivot, offset: segment.offset, scale: segment.scale, rotation: segment.rotation,
+                keyframes: keyframes)
         }
+    }
+
+    // MARK: - Keyframed transform (offset/scale/rotation/opacity sampled per frame)
+
+    /// A drawing keyframed from offset A to B lands at A at the segment's own
+    /// t0, at B at t1, and linearly interpolated midway between — the group
+    /// transform block samples `layer.keyframes` at segment-local *source*
+    /// time (`time - layer.startTime`) instead of the static offset/scale/
+    /// rotation whenever the segment is animated.
+    @MainActor
+    func testKeyframedDrawingOffsetMovesFromAToBOverTime() throws {
+        let layout = layout(enabled: false) // contentSize == canvasSize, 1:1 pixels
+        let square = Annotation(tool: .filledRectangle, startPoint: NSPoint(x: 40, y: 80),
+                                endPoint: NSPoint(x: 80, y: 120), // canvas points, bottom-left origin
+                                color: NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1), strokeWidth: 2)
+        // Segment 1...5 (source clock); keyframes at local 0 and 4 seconds,
+        // i.e. source time 1 and 5. offset.x 0 -> 0.2 (0.2 * 400 = 80px).
+        let keyframes = [
+            VideoKeyframe(time: 0, value: VideoTransformValue(offset: .zero), easing: .linear),
+            VideoKeyframe(time: 4, value: VideoTransformValue(offset: CGPoint(x: 0.2, y: 0))),
+        ]
+        let layers = try annotationLayers([square], layout: layout, start: 1, end: 5, keyframes: keyframes)
+
+        let atStart = VideoSceneRenderer.render(content: content, time: 1, scene: scene(layout), censors: [], texts: [],
+                                                annotationLayers: layers)
+        let atEnd = VideoSceneRenderer.render(content: content, time: 5, scene: scene(layout), censors: [], texts: [],
+                                              annotationLayers: layers)
+        let atMidpoint = VideoSceneRenderer.render(content: content, time: 3, scene: scene(layout), censors: [], texts: [],
+                                                   annotationLayers: layers)
+        // Square center at canvas (60, 100).
+        assertColor(pixel(atStart, 60, 100), 0, 255, 0)
+        assertColor(pixel(atStart, 140, 100), 255, 0, 0) // not yet at B (+80px)
+        assertColor(pixel(atEnd, 140, 100), 0, 255, 0) // fully moved to B
+        assertColor(pixel(atEnd, 60, 100), 255, 0, 0)
+        // Linear easing: halfway through the keyframe span lands exactly
+        // halfway between A and B (+40px).
+        assertColor(pixel(atMidpoint, 100, 100), 0, 255, 0)
+        assertColor(pixel(atMidpoint, 60, 100), 255, 0, 0)
+        assertColor(pixel(atMidpoint, 140, 100), 255, 0, 0)
+    }
+
+    /// `hold` easing keeps the earlier keyframe's placement right up to the
+    /// next keyframe, then jumps — no gradual motion in between.
+    @MainActor
+    func testKeyframedDrawingWithHoldEasingJumpsRatherThanEases() throws {
+        let layout = layout(enabled: false)
+        let square = Annotation(tool: .filledRectangle, startPoint: NSPoint(x: 40, y: 80),
+                                endPoint: NSPoint(x: 80, y: 120),
+                                color: NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1), strokeWidth: 2)
+        let keyframes = [
+            VideoKeyframe(time: 0, value: VideoTransformValue(offset: .zero), easing: .hold),
+            VideoKeyframe(time: 4, value: VideoTransformValue(offset: CGPoint(x: 0.2, y: 0))),
+        ]
+        let layers = try annotationLayers([square], layout: layout, start: 0, end: 4, keyframes: keyframes)
+        let justBeforeJump = VideoSceneRenderer.render(content: content, time: 3.99, scene: scene(layout), censors: [],
+                                                       texts: [], annotationLayers: layers)
+        let atJump = VideoSceneRenderer.render(content: content, time: 4, scene: scene(layout), censors: [], texts: [],
+                                               annotationLayers: layers)
+        // Still at the original spot right up to the next keyframe...
+        assertColor(pixel(justBeforeJump, 60, 100), 0, 255, 0)
+        // ...then jumps straight to B with no in-between placement ever drawn.
+        assertColor(pixel(atJump, 140, 100), 0, 255, 0)
+        assertColor(pixel(atJump, 60, 100), 255, 0, 0)
+    }
+
+    /// With no keyframes at all, a segment with a static stage transform
+    /// renders exactly as it always has — the keyframe sampling path is
+    /// skipped entirely (`VideoKeyframes.sample` returns `nil`).
+    @MainActor
+    func testNoKeyframesFallsBackToTheStaticTransformUnchanged() throws {
+        let layout = layout(enabled: false)
+        let square = Annotation(tool: .filledRectangle, startPoint: NSPoint(x: 40, y: 80),
+                                endPoint: NSPoint(x: 80, y: 120),
+                                color: NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1), strokeWidth: 2)
+        let withStaticOffset = try annotationLayers([square], layout: layout, offset: CGPoint(x: 0.1, y: 0))
+        let image = VideoSceneRenderer.render(content: content, time: 1, scene: scene(layout), censors: [], texts: [],
+                                              annotationLayers: withStaticOffset)
+        assertColor(pixel(image, 100, 100), 0, 255, 0) // 60 + 40 (0.1 * 400)
+        assertColor(pixel(image, 60, 100), 255, 0, 0)
+    }
+
+    /// An overlay keyframed rotation/scale/opacity is sampled at output time
+    /// since it appeared; rotation replaces the static rotation, scale is
+    /// uniform about the rect's own center, and the keyframed opacity
+    /// multiplies the overlay's own opacity/fade.
+    func testKeyframedOverlaySamplesRotationScaleAndOpacity() {
+        let layout = layout(enabled: false)
+        // A 100x100-canvas-pixel rect centered on the 400x200 canvas's own
+        // center (200, 100), holding a square 100x100 media with a small
+        // green marker 30px east of its own center, red elsewhere — same
+        // fixture `testOverlayRotationTurnsAboutItsOwnRectCenter` uses.
+        let red = CIImage(color: CIColor(red: 1, green: 0, blue: 0)).cropped(to: CGRect(x: 0, y: 0, width: 100, height: 100))
+        let marker = CIImage(color: CIColor(red: 0, green: 1, blue: 0)).cropped(to: CGRect(x: 75, y: 45, width: 10, height: 10))
+        let media = marker.composited(over: red)
+        let keyframes = [
+            VideoKeyframe(time: 0, value: VideoTransformValue(rotation: 0, opacity: 1)),
+            VideoKeyframe(time: 2, value: VideoTransformValue(rotation: .pi / 2, opacity: 0.4)),
+        ]
+        let overlay = VideoOverlayLayer(id: UUID(), trackID: nil, stillImage: media, uprightTransform: .identity,
+            rect: CGRect(x: 0.375, y: 0.25, width: 0.25, height: 0.5), compStart: 1, duration: 5,
+            opacity: 1, fadeIn: 0, fadeOut: 0, rotation: 0, keyframes: keyframes)
+        let sceneWithOverlay = VideoSceneSnapshot(layout: layout, background: nil, foreground: nil, camera: .empty,
+                                                  cameraMotionBlur: 0, cursor: nil, keystrokes: [],
+                                                  keystrokeStyle: VideoKeystrokeStyle(), captions: [],
+                                                  captionStyle: VideoCaptionStyle(), webcam: nil, overlays: [overlay])
+        // compositionTime 3 -> local time (3 - compStart 1) = 2 -> last keyframe:
+        // 90° rotation (east marker swings south) and opacity 0.4.
+        let image = VideoSceneRenderer.render(content: content, time: 3, scene: sceneWithOverlay, censors: [], texts: [],
+                                              compositionTime: 3)
+        // Background is opaque red; a 0.4-opacity green marker composited
+        // over it lands partway between red and green, not full green.
+        let sample = pixel(image, 200, 130)
+        XCTAssertLessThan(Int(sample[0]), 250, "some green should have blended in")
+        XCTAssertGreaterThan(Int(sample[1]), 80, "but not fully opaque green")
+        XCTAssertLessThan(Int(sample[1]), 220)
+        // Its old (unrotated, un-keyframed) east-of-center spot stays pure
+        // background red — the keyframed rotation, not the static 0, applied.
+        assertColor(pixel(image, 230, 100), 255, 0, 0)
+    }
+
+    /// With no keyframes at all, a rotated overlay renders exactly as before
+    /// — the keyframe sampling path is skipped (`VideoKeyframes.sample`
+    /// returns `nil` for an empty list).
+    func testOverlayWithNoKeyframesKeepsTheStaticRotation() {
+        let layout = layout(enabled: false)
+        let red = CIImage(color: CIColor(red: 1, green: 0, blue: 0)).cropped(to: CGRect(x: 0, y: 0, width: 100, height: 100))
+        let marker = CIImage(color: CIColor(red: 0, green: 1, blue: 0)).cropped(to: CGRect(x: 75, y: 45, width: 10, height: 10))
+        let media = marker.composited(over: red)
+        let overlay = VideoOverlayLayer(id: UUID(), trackID: nil, stillImage: media, uprightTransform: .identity,
+            rect: CGRect(x: 0.375, y: 0.25, width: 0.25, height: 0.5), compStart: 0, duration: 5,
+            opacity: 1, fadeIn: 0, fadeOut: 0, rotation: .pi / 2)
+        let sceneWithOverlay = VideoSceneSnapshot(layout: layout, background: nil, foreground: nil, camera: .empty,
+                                                  cameraMotionBlur: 0, cursor: nil, keystrokes: [],
+                                                  keystrokeStyle: VideoKeystrokeStyle(), captions: [],
+                                                  captionStyle: VideoCaptionStyle(), webcam: nil, overlays: [overlay])
+        let image = VideoSceneRenderer.render(content: content, time: 1, scene: sceneWithOverlay, censors: [], texts: [],
+                                              compositionTime: 1)
+        assertColor(pixel(image, 200, 130), 0, 255, 0)
+        assertColor(pixel(image, 230, 100), 255, 0, 0)
     }
 
     /// `offset` shifts every layer of the drawing by the same amount,

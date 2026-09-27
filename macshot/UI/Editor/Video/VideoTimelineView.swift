@@ -30,6 +30,11 @@ final class VideoTimelineView: NSView {
         var color: NSColor
         var symbol: String?
         var isPoint = false
+        /// Segment-local keyframes (annotation/overlay only), drawn as
+        /// diamonds at `start + key.time` — the same mixing of source
+        /// `start` and (for overlays) output-clock keyframe times the pill's
+        /// own layout already uses for its end edge.
+        var keyframes: [VideoKeyframe] = []
     }
 
     weak var delegate: VideoTimelineDelegate?
@@ -70,6 +75,10 @@ final class VideoTimelineView: NSView {
         /// Tracked by identity: items re-sort while dragging, so an index
         /// could start pointing at a different overlay mid-drag.
         case item(selection: VideoSelection, edge: Edge, grab: Double, originalStart: Double, originalEnd: Double)
+        /// Retiming a keyframe diamond. `itemStart` is the pill's own start
+        /// (source clock), matching `Item.keyframes`'s doc comment on how a
+        /// keyframe's timeline position is derived.
+        case keyframe(selection: VideoSelection, keyframeID: UUID, itemStart: Double)
     }
     enum Edge { case start, end, body }
     private var drag: Drag?
@@ -222,12 +231,13 @@ final class VideoTimelineView: NSView {
         }
         overlays += p.annotations.map { a in
             Item(selection: .annotation(a.id), lane: .overlays, row: 0, start: a.startTime, end: a.endTime,
-                 title: annotationSummary(for: a), color: VideoEditorStyle.annotation, symbol: "scribble.variable")
+                 title: annotationSummary(for: a), color: VideoEditorStyle.annotation, symbol: "scribble.variable",
+                 keyframes: a.keyframes)
         }
         overlays += p.overlays.map { o in
             Item(selection: .overlay(o.id), lane: .overlays, row: 0, start: o.startTime, end: o.startTime + o.duration,
                  title: o.displayName, color: VideoEditorStyle.overlay,
-                 symbol: o.kind == .video ? "film.stack" : "photo.stack")
+                 symbol: o.kind == .video ? "film.stack" : "photo.stack", keyframes: o.keyframes)
         }
         overlays.sort { $0.start < $1.start }
         var rowEnds: [Double] = []
@@ -513,6 +523,22 @@ final class VideoTimelineView: NSView {
         NSGraphicsContext.restoreGraphicsState()
     }
 
+    /// A small white diamond marking a keyframe on a segment pill.
+    static func drawKeyframeDiamond(at center: NSPoint, selected: Bool) {
+        let r: CGFloat = 4.5
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: center.x, y: center.y - r))
+        path.line(to: NSPoint(x: center.x + r, y: center.y))
+        path.line(to: NSPoint(x: center.x, y: center.y + r))
+        path.line(to: NSPoint(x: center.x - r, y: center.y))
+        path.close()
+        NSColor.white.setFill()
+        path.fill()
+        (selected ? NSColor.black.withAlphaComponent(0.55) : NSColor.black.withAlphaComponent(0.35)).setStroke()
+        path.lineWidth = 1
+        path.stroke()
+    }
+
     private func drawItem(_ item: Item, rect: NSRect, selected: Bool) {
         let radius: CGFloat = 6
         let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
@@ -527,6 +553,14 @@ final class VideoTimelineView: NSView {
         let inner = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: radius, yRadius: radius)
         inner.lineWidth = path.lineWidth
         inner.stroke()
+
+        if !item.keyframes.isEmpty {
+            for kf in item.keyframes {
+                let kx = x(for: VideoKeyframeEditing.timelinePosition(itemStart: item.start, keyframeTime: kf.time))
+                guard kx >= rect.minX - 1, kx <= rect.maxX + 1 else { continue }
+                Self.drawKeyframeDiamond(at: NSPoint(x: kx, y: rect.midY), selected: selected)
+            }
+        }
 
         // Label.
         let textColor = selected ? NSColor.white : NSColor.white.withAlphaComponent(0.9)
@@ -630,6 +664,22 @@ final class VideoTimelineView: NSView {
         return nil
     }
 
+    /// A keyframe diamond, checked before `hitItem` so it wins over the
+    /// pill's own body/edge hit-testing at the same point.
+    private func hitKeyframe(at p: NSPoint) -> (item: Int, keyframeID: UUID)? {
+        let selection = document.selection
+        let order = items.indices.sorted { a, b in (items[a].selection == selection ? 0 : 1) < (items[b].selection == selection ? 0 : 1) }
+        for i in order where !items[i].keyframes.isEmpty {
+            let rect = itemRect(items[i])
+            for kf in items[i].keyframes {
+                let kx = x(for: VideoKeyframeEditing.timelinePosition(itemStart: items[i].start, keyframeTime: kf.time))
+                guard abs(kx - p.x) <= 6, abs(rect.midY - p.y) <= 8 else { continue }
+                return (i, kf.id)
+            }
+        }
+        return nil
+    }
+
     private func lane(at p: NSPoint) -> Lane? {
         for (lane, rect) in laneLayout where rect.contains(NSPoint(x: rect.midX, y: p.y)) { return lane }
         return nil
@@ -689,6 +739,16 @@ final class VideoTimelineView: NSView {
             if let lane = lane(at: p), lane != .clip, lane != .captions {
                 delegate?.timeline(self, add: lane, at: clampTime(time(for: p.x)))
             }
+            return
+        }
+        // Keyframe diamonds win over the pill's own body/edge dragging.
+        if let (index, keyframeID) = hitKeyframe(at: p) {
+            let item = items[index]
+            document.select(item.selection)
+            if let kf = item.keyframes.first(where: { $0.id == keyframeID }) {
+                delegate?.timeline(self, seekTo: clampTime(VideoKeyframeEditing.timelinePosition(itemStart: item.start, keyframeTime: kf.time)))
+            }
+            beginDrag(.keyframe(selection: item.selection, keyframeID: keyframeID, itemStart: item.start))
             return
         }
         // Trim handles.
@@ -758,6 +818,29 @@ final class VideoTimelineView: NSView {
                 end = max(snap(t, excluding: selection), start + Self.minDragLength(for: selection))
             }
             apply(selection: selection, start: max(0, start), end: min(document.duration, end), edge: edge)
+        case let .keyframe(selection, keyframeID, itemStart):
+            let local = VideoKeyframeEditing.keyframeTime(forTimelinePosition: t, itemStart: itemStart)
+            applyKeyframeRetime(selection: selection, keyframeID: keyframeID, to: local)
+            delegate?.timeline(self, seekTo: t)
+        }
+    }
+
+    /// Drags a keyframe diamond to a new local time, clamped to the
+    /// segment's own duration.
+    private func applyKeyframeRetime(selection: VideoSelection, keyframeID: UUID, to localTime: Double) {
+        document.edit([.render]) { project in
+            switch selection {
+            case .annotation(let id):
+                guard let seg = project.annotations.first(where: { $0.id == id }) else { return }
+                let clamped = min(max(0, localTime), seg.duration)
+                seg.keyframes = VideoKeyframeEditing.movingKeyframe(id: keyframeID, to: clamped, in: seg.keyframes)
+            case .overlay(let id):
+                guard let seg = project.overlays.first(where: { $0.id == id }) else { return }
+                let clamped = min(max(0, localTime), seg.duration)
+                seg.keyframes = VideoKeyframeEditing.movingKeyframe(id: keyframeID, to: clamped, in: seg.keyframes)
+            default:
+                break
+            }
         }
     }
 
@@ -833,7 +916,17 @@ final class VideoTimelineView: NSView {
                 // `holdTime` moves with `startTime`; keep an attached "hold
                 // video while shown" freeze with it, in the same undo step.
                 let oldHold = seg.holdTime
+                let oldStart = seg.startTime
                 seg.startTime = start; seg.endTime = end
+                // Keys are relative to `startTime`, so a body move (both
+                // edges shift together) needs no change. Trimming the start
+                // edge keeps keys at the same absolute moment; trimming the
+                // end edge drops keys past the new end.
+                switch edge {
+                case .start: seg.keyframes = VideoKeyframeEditing.shiftedForStartTrim(seg.keyframes, delta: start - oldStart)
+                case .end: seg.keyframes = VideoKeyframeEditing.trimmedForEndTrim(seg.keyframes, newDuration: seg.duration)
+                case .body: break
+                }
                 document.relocateAnnotationFreeze(in: project, from: oldHold, to: seg.holdTime)
             case .caption(let id):
                 guard let i = project.captions.firstIndex(where: { $0.id == id }) else { return }
@@ -847,6 +940,7 @@ final class VideoTimelineView: NSView {
                     seg.duration = VideoOverlayEditing.resizedDuration(proposedEnd: end, startTime: seg.startTime,
                                                                        minDuration: VideoOverlaySegment.minDuration,
                                                                        maxDuration: seg.maxDuration)
+                    seg.keyframes = VideoKeyframeEditing.trimmedForEndTrim(seg.keyframes, newDuration: seg.duration)
                 case .start:
                     // The out point (`mediaStart + duration`) stays pinned;
                     // recomputing from the segment's own current fields each
@@ -855,9 +949,14 @@ final class VideoTimelineView: NSView {
                     let trim = VideoOverlayEditing.trimHead(kind: seg.kind, proposedStart: start, originalStart: seg.startTime,
                                                             originalMediaStart: seg.mediaStart, originalDuration: seg.duration,
                                                             minDuration: VideoOverlaySegment.minDuration)
+                    let delta = trim.startTime - seg.startTime
                     seg.startTime = trim.startTime
                     seg.mediaStart = trim.mediaStart
                     seg.duration = trim.duration
+                    // Keeps keys at the same absolute moment — same
+                    // start-trim shift as an annotation's, expressed in the
+                    // same seconds `duration`/keyframe times already use.
+                    seg.keyframes = VideoKeyframeEditing.shiftedForStartTrim(seg.keyframes, delta: delta)
                 }
             }
         }
@@ -885,6 +984,10 @@ final class VideoTimelineView: NSView {
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let p = convert(event.locationInWindow, from: nil)
+        if let (index, keyframeID) = hitKeyframe(at: p) {
+            document.select(items[index].selection)
+            return keyframeMenu(selection: items[index].selection, keyframeID: keyframeID)
+        }
         if let (index, _) = hitItem(at: p) {
             document.select(items[index].selection)
             return (window?.windowController as? VideoEditorWindowController)?.menu(for: items[index].selection)
@@ -910,6 +1013,68 @@ final class VideoTimelineView: NSView {
         guard let values = sender.representedObject as? [Any], let raw = values.first as? Int,
               let lane = Lane(rawValue: raw), let t = values.last as? Double else { return }
         delegate?.timeline(self, add: lane, at: t)
+    }
+
+    private struct KeyframeMenuPayload {
+        let selection: VideoSelection
+        let keyframeID: UUID
+        let easing: VideoKeyframe.Easing?
+    }
+
+    private func keyframeMenu(selection: VideoSelection, keyframeID: UUID) -> NSMenu {
+        let menu = NSMenu()
+        let easingMenu = NSMenu()
+        let easings: [(VideoKeyframe.Easing, String)] = [(.linear, L("Linear")), (.easeIn, L("Ease In")), (.easeOut, L("Ease Out")),
+                                                         (.easeInOut, L("Ease In/Out")), (.hold, L("Hold"))]
+        for (easing, title) in easings {
+            let item = NSMenuItem(title: title, action: #selector(setKeyframeEasing(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = KeyframeMenuPayload(selection: selection, keyframeID: keyframeID, easing: easing)
+            easingMenu.addItem(item)
+        }
+        let easingItem = NSMenuItem(title: L("Easing"), action: nil, keyEquivalent: "")
+        easingItem.submenu = easingMenu
+        menu.addItem(easingItem)
+        menu.addItem(.separator())
+        let delete = NSMenuItem(title: L("Delete Keyframe"), action: #selector(deleteKeyframe(_:)), keyEquivalent: "")
+        delete.target = self
+        delete.representedObject = KeyframeMenuPayload(selection: selection, keyframeID: keyframeID, easing: nil)
+        menu.addItem(delete)
+        return menu
+    }
+
+    @objc private func setKeyframeEasing(_ sender: NSMenuItem) {
+        guard let payload = sender.representedObject as? KeyframeMenuPayload, let easing = payload.easing else { return }
+        document.edit([.render]) { project in
+            switch payload.selection {
+            case .annotation(let id):
+                guard let seg = project.annotations.first(where: { $0.id == id }),
+                      let i = seg.keyframes.firstIndex(where: { $0.id == payload.keyframeID }) else { return }
+                seg.keyframes[i].easing = easing
+            case .overlay(let id):
+                guard let seg = project.overlays.first(where: { $0.id == id }),
+                      let i = seg.keyframes.firstIndex(where: { $0.id == payload.keyframeID }) else { return }
+                seg.keyframes[i].easing = easing
+            default:
+                break
+            }
+        }
+    }
+
+    @objc private func deleteKeyframe(_ sender: NSMenuItem) {
+        guard let payload = sender.representedObject as? KeyframeMenuPayload else { return }
+        document.edit([.render]) { project in
+            switch payload.selection {
+            case .annotation(let id):
+                guard let seg = project.annotations.first(where: { $0.id == id }), seg.keyframes.count > 1 else { return }
+                seg.keyframes = VideoKeyframeEditing.deletingKeyframe(id: payload.keyframeID, in: seg.keyframes)
+            case .overlay(let id):
+                guard let seg = project.overlays.first(where: { $0.id == id }), seg.keyframes.count > 1 else { return }
+                seg.keyframes = VideoKeyframeEditing.deletingKeyframe(id: payload.keyframeID, in: seg.keyframes)
+            default:
+                break
+            }
+        }
     }
 
     // MARK: Keyboard and zoom

@@ -253,6 +253,16 @@ final class VideoEditorPlayback {
         seek(toSource: min(project.trimEnd, max(project.trimStart, currentSourceTime + delta)))
     }
 
+    /// Composition-clock time for a source-asset time, via the mapping the
+    /// current player item was built with — the same clock an overlay's
+    /// keyframes animate on (`VideoOverlaySegment`'s doc comment). Exposed
+    /// for `VideoKeyframeEditing.overlayLocalTime`.
+    func compositionTime(forSource t: Double) -> Double { mapping.compositionTime(at: t) }
+
+    /// The inverse of `compositionTime(forSource:)`, for seeking the
+    /// playhead to a given overlay-local (output) time.
+    func sourceTime(forComposition t: Double) -> Double { mapping.sourceTime(at: t) }
+
     /// Source time → edited (output) time for display.
     func outputTime(forSource t: Double) -> Double {
         let pieces = VideoRenderPlanner.pieces(project: document.project, from: document.project.trimStart,

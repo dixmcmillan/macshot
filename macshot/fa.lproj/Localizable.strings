@@ -901,3 +901,21 @@
 "Scale" = "مقیاس";
 "Rotation" = "چرخش";
 "Reset Transform" = "بازنشانی تبدیل";
+
+/* Keyframe animation (video editor) */
+"Animate" = "پویانمایی";
+"Keyframe the transform and opacity over time." = "با گذر زمان برای تبدیل و کدری، فریم‌های کلیدی تنظیم کنید.";
+"Stop Animating?" = "پویانمایی متوقف شود؟";
+"This removes its keyframes and keeps the current position as its transform." = "با این کار فریم‌های کلیدی آن حذف می‌شوند و موقعیت فعلی به‌عنوان تبدیل آن حفظ می‌شود.";
+"Stop Animating" = "توقف پویانمایی";
+"Previous Keyframe" = "فریم کلیدی قبلی";
+"Add Keyframe" = "افزودن فریم کلیدی";
+"Remove Keyframe" = "حذف فریم کلیدی";
+"Next Keyframe" = "فریم کلیدی بعدی";
+"Easing" = "نرمی حرکت";
+"Linear" = "خطی";
+"Ease In" = "شتاب ورود";
+"Ease Out" = "شتاب خروج";
+"Ease In/Out" = "شتاب ورود/خروج";
+"Hold" = "نگه‌داشتن";
+"Delete Keyframe" = "حذف فریم کلیدی";

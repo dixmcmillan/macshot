@@ -901,3 +901,21 @@
 "Scale" = "அளவு";
 "Rotation" = "சுழற்சி";
 "Reset Transform" = "உருமாற்றத்தை மீட்டமை";
+
+/* Keyframe animation (video editor) */
+"Animate" = "அசைவூட்டு";
+"Keyframe the transform and opacity over time." = "காலப்போக்கில் உருமாற்றம் மற்றும் ஒளிபுகாத்தன்மைக்கு கீஃப்ரேம் அமைக்கவும்.";
+"Stop Animating?" = "அசைவூட்டத்தை நிறுத்தவா?";
+"This removes its keyframes and keeps the current position as its transform." = "இது அதன் கீஃப்ரேம்களை அகற்றி, தற்போதைய நிலையை அதன் உருமாற்றமாக வைத்திருக்கும்.";
+"Stop Animating" = "அசைவூட்டத்தை நிறுத்து";
+"Previous Keyframe" = "முந்தைய கீஃப்ரேம்";
+"Add Keyframe" = "கீஃப்ரேம் சேர்";
+"Remove Keyframe" = "கீஃப்ரேம் அகற்று";
+"Next Keyframe" = "அடுத்த கீஃப்ரேம்";
+"Easing" = "மென்மையாக்கம்";
+"Linear" = "நேரியல்";
+"Ease In" = "உள்நுழை மென்மை";
+"Ease Out" = "வெளியேறு மென்மை";
+"Ease In/Out" = "உள்/வெளி மென்மை";
+"Hold" = "பிடி";
+"Delete Keyframe" = "கீஃப்ரேம் அகற்று";

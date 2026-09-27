@@ -901,3 +901,21 @@
 "Scale" = "Ölçek";
 "Rotation" = "Döndürme";
 "Reset Transform" = "Dönüşümü Sıfırla";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Canlandır";
+"Keyframe the transform and opacity over time." = "Zaman içinde dönüşüm ve opaklık için anahtar kare belirleyin.";
+"Stop Animating?" = "Canlandırma durdurulsun mu?";
+"This removes its keyframes and keeps the current position as its transform." = "Bu, anahtar karelerini kaldırır ve geçerli konumu dönüşümü olarak korur.";
+"Stop Animating" = "Canlandırmayı Durdur";
+"Previous Keyframe" = "Önceki Anahtar Kare";
+"Add Keyframe" = "Anahtar Kare Ekle";
+"Remove Keyframe" = "Anahtar Kareyi Kaldır";
+"Next Keyframe" = "Sonraki Anahtar Kare";
+"Easing" = "Yumuşatma";
+"Linear" = "Doğrusal";
+"Ease In" = "Yumuşak Giriş";
+"Ease Out" = "Yumuşak Çıkış";
+"Ease In/Out" = "Yumuşak Giriş/Çıkış";
+"Hold" = "Tut";
+"Delete Keyframe" = "Anahtar Kareyi Kaldır";

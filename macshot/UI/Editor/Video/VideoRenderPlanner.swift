@@ -192,7 +192,7 @@ final class VideoRenderPlanner {
                 result.append(VideoOverlayLayer(id: segment.id, trackID: placement.trackID, stillImage: nil,
                     uprightTransform: upright.coreImageTransform, rect: segment.rect, compStart: placement.compStart,
                     duration: segment.duration, opacity: segment.opacity, fadeIn: segment.fadeIn, fadeOut: segment.fadeOut,
-                    rotation: segment.rotation))
+                    rotation: segment.rotation, keyframes: segment.keyframes))
             case .image:
                 guard let compStart = VideoCompositionBuilder.compositionTime(forSource: segment.startTime, timeMap: timeMap),
                       let url = document.overlayURL(for: segment) else { continue }
@@ -207,7 +207,8 @@ final class VideoRenderPlanner {
                 }
                 result.append(VideoOverlayLayer(id: segment.id, trackID: nil, stillImage: image,
                     uprightTransform: .identity, rect: segment.rect, compStart: compStart, duration: segment.duration,
-                    opacity: segment.opacity, fadeIn: segment.fadeIn, fadeOut: segment.fadeOut, rotation: segment.rotation))
+                    opacity: segment.opacity, fadeIn: segment.fadeIn, fadeOut: segment.fadeOut, rotation: segment.rotation,
+                    keyframes: segment.keyframes))
             }
         }
         for key in Array(overlayImageCache.keys) where !liveImages.contains(key) { overlayImageCache.removeValue(forKey: key) }
@@ -303,7 +304,8 @@ final class VideoRenderPlanner {
                 result.append(.init(segmentID: segment.id, startTime: segment.startTime, endTime: segment.endTime,
                                     rect: full, image: base, layerIndex: 0, fadeIn: segment.fadeIn, fadeOut: segment.fadeOut,
                                     entrance: .fade, exit: .fade, stagger: 0, reveal: nil,
-                                    pivot: entry.pivot, offset: segment.offset, scale: segment.scale, rotation: segment.rotation))
+                                    pivot: entry.pivot, offset: segment.offset, scale: segment.scale, rotation: segment.rotation,
+                                    keyframes: segment.keyframes))
             }
             for (index, layer) in entry.layers.enumerated() {
                 result.append(.init(segmentID: segment.id, startTime: segment.startTime, endTime: segment.endTime,
@@ -311,7 +313,8 @@ final class VideoRenderPlanner {
                                     fadeIn: segment.fadeIn, fadeOut: segment.fadeOut,
                                     entrance: segment.entrance, exit: segment.exit, stagger: segment.stagger,
                                     reveal: layer.reveal,
-                                    pivot: entry.pivot, offset: segment.offset, scale: segment.scale, rotation: segment.rotation))
+                                    pivot: entry.pivot, offset: segment.offset, scale: segment.scale, rotation: segment.rotation,
+                                    keyframes: segment.keyframes))
             }
         }
         for key in Array(annotationCache.keys) where !live.contains(key) { annotationCache.removeValue(forKey: key) }

@@ -901,3 +901,21 @@
 "Scale" = "تحجيم";
 "Rotation" = "تدوير";
 "Reset Transform" = "إعادة تعيين التحويل";
+
+/* Keyframe animation (video editor) */
+"Animate" = "تحريك";
+"Keyframe the transform and opacity over time." = "قم بضبط مفاتيح التحويل والعتامة بمرور الوقت.";
+"Stop Animating?" = "إيقاف التحريك؟";
+"This removes its keyframes and keeps the current position as its transform." = "يؤدي هذا إلى إزالة إطاراته الرئيسية والاحتفاظ بالموضع الحالي كتحويله.";
+"Stop Animating" = "إيقاف التحريك";
+"Previous Keyframe" = "الإطار الرئيسي السابق";
+"Add Keyframe" = "إضافة إطار رئيسي";
+"Remove Keyframe" = "إزالة الإطار الرئيسي";
+"Next Keyframe" = "الإطار الرئيسي التالي";
+"Easing" = "التسارع";
+"Linear" = "خطي";
+"Ease In" = "تسارع الدخول";
+"Ease Out" = "تسارع الخروج";
+"Ease In/Out" = "تسارع الدخول والخروج";
+"Hold" = "ثبات";
+"Delete Keyframe" = "حذف الإطار الرئيسي";

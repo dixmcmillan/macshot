@@ -901,3 +901,21 @@
 "Scale" = "Skala";
 "Rotation" = "Putaran";
 "Reset Transform" = "Tetapkan Semula Transformasi";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Animasikan";
+"Keyframe the transform and opacity over time." = "Tetapkan bingkai kunci untuk transformasi dan kelegapan dari semasa ke semasa.";
+"Stop Animating?" = "Hentikan animasi?";
+"This removes its keyframes and keeps the current position as its transform." = "Ini mengalih keluar bingkai kuncinya dan mengekalkan kedudukan semasa sebagai transformasinya.";
+"Stop Animating" = "Hentikan Animasi";
+"Previous Keyframe" = "Bingkai Kunci Sebelumnya";
+"Add Keyframe" = "Tambah Bingkai Kunci";
+"Remove Keyframe" = "Alih Keluar Bingkai Kunci";
+"Next Keyframe" = "Bingkai Kunci Seterusnya";
+"Easing" = "Easing";
+"Linear" = "Linear";
+"Ease In" = "Easing Masuk";
+"Ease Out" = "Easing Keluar";
+"Ease In/Out" = "Easing Masuk/Keluar";
+"Hold" = "Tahan";
+"Delete Keyframe" = "Alih Keluar Bingkai Kunci";

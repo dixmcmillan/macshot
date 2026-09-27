@@ -901,3 +901,21 @@
 "Scale" = "स्केल";
 "Rotation" = "घुमाव";
 "Reset Transform" = "रूपांतरण रीसेट करें";
+
+/* Keyframe animation (video editor) */
+"Animate" = "एनिमेट करें";
+"Keyframe the transform and opacity over time." = "समय के साथ रूपांतरण और अपारदर्शिता के लिए कीफ़्रेम सेट करें।";
+"Stop Animating?" = "एनिमेशन बंद करें?";
+"This removes its keyframes and keeps the current position as its transform." = "इससे इसके कीफ़्रेम हट जाएंगे और वर्तमान स्थिति को इसके रूपांतरण के रूप में रखा जाएगा।";
+"Stop Animating" = "एनिमेशन बंद करें";
+"Previous Keyframe" = "पिछला कीफ़्रेम";
+"Add Keyframe" = "कीफ़्रेम जोड़ें";
+"Remove Keyframe" = "कीफ़्रेम हटाएँ";
+"Next Keyframe" = "अगला कीफ़्रेम";
+"Easing" = "ईज़िंग";
+"Linear" = "रैखिक";
+"Ease In" = "ईज़ इन";
+"Ease Out" = "ईज़ आउट";
+"Ease In/Out" = "ईज़ इन/आउट";
+"Hold" = "होल्ड";
+"Delete Keyframe" = "कीफ़्रेम हटाएँ";

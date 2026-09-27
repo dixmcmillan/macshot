@@ -46,6 +46,10 @@ final class VideoOverlaySegment: Codable {
     /// Radians, clockwise as seen on screen, about `rect`'s own center. 0 =
     /// no rotation. Independent of `rect`'s aspect-locked move/resize.
     var rotation: Double
+    /// Animated transform over the overlay's play time (seconds from when it
+    /// appears, output clock). When present it moves/scales the overlay
+    /// relative to `rect` and replaces `rotation`; its opacity multiplies.
+    var keyframes: [VideoKeyframe] = []
 
     init(id: UUID = UUID(), kind: Kind, fileName: String, displayName: String, startTime: Double,
          duration: Double, mediaStart: Double = 0, mediaDuration: Double, mediaSize: CGSize,
@@ -69,7 +73,7 @@ final class VideoOverlaySegment: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, kind, fileName, displayName, startTime, duration, mediaStart, mediaDuration, mediaSize
-        case rect, opacity, fadeIn, fadeOut, rotation
+        case rect, opacity, fadeIn, fadeOut, rotation, keyframes
     }
 
     init(from decoder: Decoder) throws {
@@ -95,6 +99,7 @@ final class VideoOverlaySegment: Codable {
         fadeOut = c.decode(.fadeOut, or: Self.defaultFade)
         let decodedRotation = c.decode(.rotation, or: 0.0)
         rotation = decodedRotation.isFinite ? decodedRotation : 0
+        keyframes = VideoKeyframes.clamped(c.decode(.keyframes, or: [VideoKeyframe]()), duration: duration)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -113,6 +118,7 @@ final class VideoOverlaySegment: Codable {
         try c.encode(fadeIn, forKey: .fadeIn)
         try c.encode(fadeOut, forKey: .fadeOut)
         try c.encode(rotation, forKey: .rotation)
+        try c.encode(keyframes, forKey: .keyframes)
     }
 
     /// Longest the overlay can play without running out of media. Images
@@ -124,6 +130,18 @@ final class VideoOverlaySegment: Codable {
     /// Opacity at `local` seconds after the overlay appeared.
     func opacity(atLocal local: Double) -> CGFloat {
         CGFloat(opacity) * VideoEffectTiming.opacity(at: local, start: 0, end: duration, fadeIn: fadeIn, fadeOut: fadeOut)
+    }
+
+    /// The static rotation as a keyframe value — identity offset/scale
+    /// because those live in `rect` for a non-animated overlay.
+    var staticTransform: VideoTransformValue {
+        VideoTransformValue(offset: .zero, scale: 1, rotation: rotation, opacity: 1)
+    }
+
+    /// Transform at `local` seconds after the overlay appeared (output
+    /// clock, same as `opacity(atLocal:)`): keyframed when animated, else static.
+    func transform(atLocal local: Double) -> VideoTransformValue {
+        VideoKeyframes.sample(keyframes, at: local) ?? staticTransform
     }
 
     /// Content-normalized rect of height `height` centered on the frame,

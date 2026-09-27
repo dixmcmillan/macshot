@@ -901,3 +901,21 @@
 "Scale" = "Κλίμακα";
 "Rotation" = "Περιστροφή";
 "Reset Transform" = "Επαναφορά μετασχηματισμού";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Κίνηση";
+"Keyframe the transform and opacity over time." = "Ορίστε βασικά καρέ για τον μετασχηματισμό και την αδιαφάνεια με την πάροδο του χρόνου.";
+"Stop Animating?" = "Διακοπή κίνησης;";
+"This removes its keyframes and keeps the current position as its transform." = "Αυτό αφαιρεί τα βασικά καρέ του και διατηρεί την τρέχουσα θέση ως τον μετασχηματισμό του.";
+"Stop Animating" = "Διακοπή κίνησης";
+"Previous Keyframe" = "Προηγούμενο βασικό καρέ";
+"Add Keyframe" = "Προσθήκη βασικού καρέ";
+"Remove Keyframe" = "Αφαίρεση βασικού καρέ";
+"Next Keyframe" = "Επόμενο βασικό καρέ";
+"Easing" = "Ομαλή μετάβαση";
+"Linear" = "Γραμμικό";
+"Ease In" = "Ομαλή είσοδος";
+"Ease Out" = "Ομαλή έξοδος";
+"Ease In/Out" = "Ομαλή είσοδος/έξοδος";
+"Hold" = "Διατήρηση";
+"Delete Keyframe" = "Διαγραφή βασικού καρέ";

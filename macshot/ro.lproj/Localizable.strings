@@ -899,3 +899,21 @@
 "Scale" = "Scară";
 "Rotation" = "Rotație";
 "Reset Transform" = "Resetează transformarea";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Animare";
+"Keyframe the transform and opacity over time." = "Definiți cadre-cheie pentru transformare și opacitate în timp.";
+"Stop Animating?" = "Opriți animația?";
+"This removes its keyframes and keeps the current position as its transform." = "Acest lucru elimină cadrele-cheie și păstrează poziția curentă ca transformare.";
+"Stop Animating" = "Oprește animația";
+"Previous Keyframe" = "Cadrul-cheie anterior";
+"Add Keyframe" = "Adaugă cadru-cheie";
+"Remove Keyframe" = "Elimină cadrul-cheie";
+"Next Keyframe" = "Cadrul-cheie următor";
+"Easing" = "Atenuare";
+"Linear" = "Liniar";
+"Ease In" = "Atenuare la intrare";
+"Ease Out" = "Atenuare la ieșire";
+"Ease In/Out" = "Atenuare la intrare/ieșire";
+"Hold" = "Menținere";
+"Delete Keyframe" = "Elimină cadrul-cheie";

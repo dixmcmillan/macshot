@@ -901,3 +901,21 @@
 "Scale" = "Размера";
 "Rotation" = "Ротација";
 "Reset Transform" = "Ресетуј трансформацију";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Анимирај";
+"Keyframe the transform and opacity over time." = "Поставите кључне кадрове за трансформацију и непровидност током времена.";
+"Stop Animating?" = "Зауставити анимацију?";
+"This removes its keyframes and keeps the current position as its transform." = "Ово уклања његове кључне кадрове и задржава тренутни положај као његову трансформацију.";
+"Stop Animating" = "Заустави анимацију";
+"Previous Keyframe" = "Претходни кључни кадар";
+"Add Keyframe" = "Додај кључни кадар";
+"Remove Keyframe" = "Уклони кључни кадар";
+"Next Keyframe" = "Следећи кључни кадар";
+"Easing" = "Ублажавање";
+"Linear" = "Линеарно";
+"Ease In" = "Ублажавање на почетку";
+"Ease Out" = "Ублажавање на крају";
+"Ease In/Out" = "Ублажавање на почетку/крају";
+"Hold" = "Задржи";
+"Delete Keyframe" = "Уклони кључни кадар";

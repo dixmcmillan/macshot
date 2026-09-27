@@ -268,6 +268,12 @@ final class VideoEditorWindowController: NSWindowController, NSWindowDelegate {
         transport.timeLabel.stringValue = VideoTransportBar.format(playback.outputTime(forSource: t))
         timeline.updatePlayhead(time: t)
         if playback.isPlaying { timeline.revealPlayhead(time: t) }
+        // An animated annotation/overlay's stage chrome and inspector values
+        // are sampled at the playhead — keep them live while scrubbing.
+        // Playback itself hides stage chrome (`hidesForPlayback`), and the
+        // inspector's refresh is cheap, so this is safe unconditionally.
+        stage.overlay.needsDisplay = true
+        inspector.refreshLiveValues()
     }
 
     // MARK: Window lifecycle
@@ -544,7 +550,12 @@ final class VideoEditorWindowController: NSWindowController, NSWindowDelegate {
         playback.pause()
         isAnnotatorOpen = true
         let canvasSize = segment.canvasSize
-        let bakedOffset = segment.offset
+        // An animated drawing's offset is keyframed, not `segment.offset` —
+        // baking that (now-irrelevant) static field into the shapes would
+        // apply a stale or meaningless shift. Non-animated behavior (offset
+        // baked in, scale/rotation kept as a segment-level transform) is
+        // unchanged.
+        let bakedOffset = VideoKeyframeEditing.isAnimated(segment.keyframes) ? .zero : segment.offset
         let startingAnnotations = segment.annotations
         if bakedOffset != .zero {
             let delta = VideoAnnotationSegment.canvasDelta(forContentOffset: bakedOffset, canvasSize: canvasSize)

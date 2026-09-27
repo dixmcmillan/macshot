@@ -122,10 +122,17 @@ nonisolated final class VideoOverlayLayer: @unchecked Sendable {
     let fadeOut: Double
     /// Radians, clockwise as seen on screen, about `rect`'s own center.
     let rotation: Double
+    /// Animated transform (`VideoOverlaySegment.keyframes`), sampled at
+    /// output time since the overlay appeared (`compositionTime - compStart`)
+    /// by `VideoSceneRenderer.render`. When it yields a value: offset
+    /// translates `rect`, scale is uniform about `rect`'s own center,
+    /// rotation replaces the static `rotation`, and its opacity multiplies
+    /// the overlay's own. Empty (the default) renders exactly as before.
+    let keyframes: [VideoKeyframe]
 
     init(id: UUID, trackID: Int32?, stillImage: CIImage?, uprightTransform: CGAffineTransform,
          rect: CGRect, compStart: Double, duration: Double, opacity: Double, fadeIn: Double, fadeOut: Double,
-         rotation: Double = 0) {
+         rotation: Double = 0, keyframes: [VideoKeyframe] = []) {
         self.id = id
         self.trackID = trackID
         self.stillImage = stillImage
@@ -137,6 +144,7 @@ nonisolated final class VideoOverlayLayer: @unchecked Sendable {
         self.fadeIn = fadeIn
         self.fadeOut = fadeOut
         self.rotation = rotation
+        self.keyframes = keyframes
     }
 
     /// Opacity at composition-clock `compTime`; 0 outside `[compStart, compStart + duration)`.
@@ -294,7 +302,33 @@ nonisolated enum VideoSceneRenderer {
             guard preCameraCI.width > 1, preCameraCI.height > 1 else { continue }
             var transform = CGAffineTransform(scaleX: preCameraCI.width / extent.width, y: preCameraCI.height / extent.height)
                 .concatenating(CGAffineTransform(translationX: preCameraCI.minX, y: preCameraCI.minY))
-            if overlay.rotation != 0 {
+            // Keyframed transform (if any) replaces the static rotation
+            // entirely and adds an offset/scale about the rect's own center;
+            // with no keyframes this is byte-for-byte the old rotation-only
+            // path.
+            let keyed = VideoKeyframes.sample(overlay.keyframes, at: compositionTime - overlay.compStart)
+            var keyframeOpacity: Double = 1
+            if let keyed {
+                keyframeOpacity = keyed.opacity
+                let center = CGPoint(x: preCameraCI.midX, y: preCameraCI.midY)
+                // Offset: content-normalized translation, converted to a CI
+                // pixel delta the same way `placeAnnotationLayer` converts an
+                // annotation's `offset` — the linear part of
+                // `canvasPoint(forContent:)` applied to the vector, so it
+                // follows crop/zoom like a rect's own origin does. Applied
+                // last (after rotate/scale about the center), like the
+                // annotation group transform's offset.
+                let origin = layout.canvasPoint(forContent: .zero)
+                let offsetTopLeft = layout.canvasPoint(forContent: keyed.offset)
+                let offsetCI = CGPoint(x: offsetTopLeft.x - origin.x, y: -(offsetTopLeft.y - origin.y))
+                transform = transform
+                    .concatenating(CGAffineTransform(translationX: -center.x, y: -center.y))
+                    // Negated: see the note below on the non-keyframed path.
+                    .concatenating(CGAffineTransform(rotationAngle: -CGFloat(keyed.rotation)))
+                    .concatenating(CGAffineTransform(scaleX: CGFloat(keyed.scale), y: CGFloat(keyed.scale)))
+                    .concatenating(CGAffineTransform(translationX: center.x, y: center.y))
+                    .concatenating(CGAffineTransform(translationX: offsetCI.x, y: offsetCI.y))
+            } else if overlay.rotation != 0 {
                 let center = CGPoint(x: preCameraCI.midX, y: preCameraCI.midY)
                 // Negated: `rotation` is clockwise-as-seen-on-screen (the
                 // stage's convention, a plain rotation matrix in its
@@ -308,7 +342,7 @@ nonisolated enum VideoSceneRenderer {
                     .concatenating(CGAffineTransform(translationX: center.x, y: center.y))
             }
             transform = transform.concatenating(cameraTransformCI)
-            composed = withOpacity(frame.transformed(by: transform), opacity).composited(over: composed)
+            composed = withOpacity(frame.transformed(by: transform), opacity * CGFloat(keyframeOpacity)).composited(over: composed)
         }
 
         // 4b. Animated screenshot-annotation layers — placed exactly like
@@ -389,8 +423,17 @@ nonisolated enum VideoSceneRenderer {
             .concatenating(CGAffineTransform(translationX: preCameraCI.minX, y: preCameraCI.minY))
 
         // Segment-level offset/scale/rotation, about the drawing's pivot, in
-        // the same pre-camera CI space.
-        if layer.offset != .zero || layer.scale != 1 || layer.rotation != 0 {
+        // the same pre-camera CI space. When the segment is keyframed, the
+        // sampled value (local clock = source time since the segment
+        // started) replaces the static offset/scale/rotation for this frame
+        // and its opacity multiplies the layer's own; with no keyframes this
+        // is exactly today's static-transform path.
+        let keyed = VideoKeyframes.sample(layer.keyframes, at: time - layer.startTime)
+        let effectiveOffset = keyed?.offset ?? layer.offset
+        let effectiveScale = keyed?.scale ?? layer.scale
+        let effectiveRotation = keyed?.rotation ?? layer.rotation
+        let keyframeOpacity = keyed?.opacity ?? 1
+        if effectiveOffset != .zero || effectiveScale != 1 || effectiveRotation != 0 {
             let pivotTopLeft = layout.canvasPoint(forContent: layer.pivot)
             let pivotCI = CGPoint(x: pivotTopLeft.x, y: H - pivotTopLeft.y)
             // A pure translation: the linear part of `canvasPoint(forContent:)`
@@ -398,7 +441,7 @@ nonisolated enum VideoSceneRenderer {
             // constant/translate part), so this follows crop/zoom exactly
             // like any other content-normalized rect origin does.
             let origin = layout.canvasPoint(forContent: .zero)
-            let offsetTopLeft = layout.canvasPoint(forContent: layer.offset)
+            let offsetTopLeft = layout.canvasPoint(forContent: effectiveOffset)
             let offsetCI = CGPoint(x: offsetTopLeft.x - origin.x, y: -(offsetTopLeft.y - origin.y))
             transform = transform
                 .concatenating(CGAffineTransform(translationX: -pivotCI.x, y: -pivotCI.y))
@@ -407,8 +450,8 @@ nonisolated enum VideoSceneRenderer {
                 // this step runs in CI's bottom-left/y-up space, where the
                 // same matrix reads counter-clockwise — flipping one axis
                 // flips the handedness of "positive angle."
-                .concatenating(CGAffineTransform(rotationAngle: -CGFloat(layer.rotation)))
-                .concatenating(CGAffineTransform(scaleX: CGFloat(layer.scale), y: CGFloat(layer.scale)))
+                .concatenating(CGAffineTransform(rotationAngle: -CGFloat(effectiveRotation)))
+                .concatenating(CGAffineTransform(scaleX: CGFloat(effectiveScale), y: CGFloat(effectiveScale)))
                 .concatenating(CGAffineTransform(translationX: pivotCI.x, y: pivotCI.y))
                 .concatenating(CGAffineTransform(translationX: offsetCI.x, y: offsetCI.y))
         }
@@ -435,7 +478,7 @@ nonisolated enum VideoSceneRenderer {
         }
         let bounds = extent.applying(transform)
         guard bounds.width > 1, bounds.height > 1 else { return nil }
-        return withOpacity(image.transformed(by: transform), motion.opacity)
+        return withOpacity(image.transformed(by: transform), motion.opacity * CGFloat(keyframeOpacity))
     }
 
     /// `image` with `mask`'s alpha channel applied, keeping `image`'s own

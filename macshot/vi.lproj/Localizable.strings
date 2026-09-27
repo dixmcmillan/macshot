@@ -899,3 +899,21 @@
 "Scale" = "Tỷ lệ";
 "Rotation" = "Xoay";
 "Reset Transform" = "Đặt lại phép biến đổi";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Tạo hoạt ảnh";
+"Keyframe the transform and opacity over time." = "Đặt khung hình chính cho phép biến đổi và độ đục theo thời gian.";
+"Stop Animating?" = "Dừng tạo hoạt ảnh?";
+"This removes its keyframes and keeps the current position as its transform." = "Thao tác này sẽ xóa các khung hình chính và giữ vị trí hiện tại làm phép biến đổi.";
+"Stop Animating" = "Dừng Tạo Hoạt Ảnh";
+"Previous Keyframe" = "Khung Hình Chính Trước";
+"Add Keyframe" = "Thêm Khung Hình Chính";
+"Remove Keyframe" = "Xóa Khung Hình Chính";
+"Next Keyframe" = "Khung Hình Chính Tiếp Theo";
+"Easing" = "Làm Mượt";
+"Linear" = "Tuyến Tính";
+"Ease In" = "Mượt Vào";
+"Ease Out" = "Mượt Ra";
+"Ease In/Out" = "Mượt Vào/Ra";
+"Hold" = "Giữ";
+"Delete Keyframe" = "Xóa Khung Hình Chính";

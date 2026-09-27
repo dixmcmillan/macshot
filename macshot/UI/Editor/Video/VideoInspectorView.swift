@@ -72,6 +72,11 @@ final class VideoInspectorView: NSView {
         if let observerID { document.removeObserver(observerID) }
     }
 
+    /// Re-runs every row's `get()` without rebuilding the panel — used while
+    /// scrubbing so an animated selection's sampled Scale/Rotation/Opacity,
+    /// Easing and keyframe-navigator state stay live at the playhead.
+    func refreshLiveValues() { refreshers.forEach { $0() } }
+
     // MARK: Structure
 
     private func buildRail() {
@@ -274,6 +279,69 @@ final class VideoInspectorView: NSView {
     }
 
     private var look: VideoLook { document.project.look }
+
+    // MARK: Keyframe animation (annotation + overlay Transform cards)
+
+    /// The current playhead, source-asset seconds.
+    private var currentSourceTime: Double { controller?.playback.currentSourceTime ?? 0 }
+
+    private func annotationLocalTime(_ segment: VideoAnnotationSegment) -> Double {
+        VideoKeyframeEditing.drawingLocalTime(sourceTime: currentSourceTime, startTime: segment.startTime,
+                                              duration: segment.duration)
+    }
+
+    private func overlayLocalTime(_ segment: VideoOverlaySegment) -> Double {
+        guard let playback = controller?.playback else { return 0 }
+        return VideoKeyframeEditing.overlayLocalTime(sourceTime: currentSourceTime, overlayStartTime: segment.startTime,
+                                                     duration: segment.duration, compositionTime: playback.compositionTime(forSource:))
+    }
+
+    /// "Stop Animating?" confirmation, shared by the Animate toggle's OFF
+    /// switch and by Reset (which also has to stop animating — otherwise the
+    /// values it resets stay overridden by the sampled keyframe transform).
+    private func confirmClearingKeyframes(then commit: @escaping () -> Void) {
+        guard let window else { return }
+        let alert = NSAlert()
+        alert.messageText = L("Stop Animating?")
+        alert.informativeText = L("This removes its keyframes and keeps the current position as its transform.")
+        alert.addButton(withTitle: L("Stop Animating"))
+        alert.addButton(withTitle: L("Cancel"))
+        alert.alertStyle = .warning
+        alert.beginSheetModal(for: window) { response in
+            guard response == .alertFirstButtonReturn else { return }
+            commit()
+        }
+    }
+
+    /// "Easing ▾" popup for the keyframe at or before the playhead.
+    private func easingPopupRow(keyframes: @escaping () -> [VideoKeyframe], localTime: @escaping () -> Double,
+                                setKeyframes: @escaping (VideoProject, [VideoKeyframe]) -> Void) -> InspectorPopupRow {
+        let labels = [L("Linear"), L("Ease In"), L("Ease Out"), L("Ease In/Out"), L("Hold")]
+        let cases = VideoKeyframe.Easing.allCases
+        return popup(L("Easing"), labels, get: {
+            let easing = VideoKeyframeEditing.keyframeAtOrBefore(localTime(), in: keyframes())?.easing ?? .easeInOut
+            return cases.firstIndex(of: easing) ?? 0
+        }) { p, i in
+            setKeyframes(p, VideoKeyframeEditing.settingEasing(cases[i], forKeyframeAtOrBefore: localTime(), in: keyframes()))
+        }
+    }
+
+    /// "◀  ◆  ▶" navigator: previous/toggle/next keyframe around the playhead.
+    private func keyframeNavigatorRow(keyframes: @escaping () -> [VideoKeyframe], localTime: @escaping () -> Double,
+                                      seek: @escaping (Double) -> Void, toggle: @escaping () -> Void) -> KeyframeNavigatorRow {
+        let row = KeyframeNavigatorRow(
+            onPrev: { if let t = VideoKeyframeEditing.previousKeyframeTime(before: localTime(), in: keyframes()) { seek(t) } },
+            onToggle: toggle,
+            onNext: { if let t = VideoKeyframeEditing.nextKeyframeTime(after: localTime(), in: keyframes()) { seek(t) } })
+        refreshers.append { [weak row] in
+            guard let row else { return }
+            let t = localTime(), kfs = keyframes()
+            row.update(hasKeyframeHere: VideoKeyframeEditing.hasKeyframe(at: t, in: kfs),
+                      hasPrev: VideoKeyframeEditing.previousKeyframeTime(before: t, in: kfs) != nil,
+                      hasNext: VideoKeyframeEditing.nextKeyframeTime(after: t, in: kfs) != nil)
+        }
+        return row
+    }
 
     // MARK: Background
 
@@ -890,28 +958,118 @@ final class VideoInspectorView: NSView {
         add(holdRow)
 
         add(InspectorSectionHeader(L("Transform")))
-        add(InspectorCard([
-            slider(L("Scale"), VideoAnnotationSegment.minScale...VideoAnnotationSegment.maxScale,
-                   get: { [unowned self] in segment(self.document.project)?.scale ?? 1 },
-                   format: { "\(Int(($0 * 100).rounded()))%" }) { p, v in
-                segment(p)?.scale = VideoAnnotationSegment.clampedScale(v)
-            },
-            slider(L("Rotation"), -180...180,
-                   get: { [unowned self] in (segment(self.document.project)?.rotation ?? 0) * 180 / .pi },
-                   format: { String(format: "%.0f°", $0) }) { p, v in
-                segment(p)?.rotation = v * .pi / 180
-            },
-        ]))
+        let isAnimated = VideoKeyframeEditing.isAnimated(seg.keyframes)
+        add(InspectorSwitchRow(title: L("Animate"), subtitle: L("Keyframe the transform and opacity over time."),
+                               isOn: isAnimated) { [weak self] on in
+            self?.setAnnotationAnimated(id: id, on: on)
+        })
+        var transformRows: [NSView] = []
+        if isAnimated {
+            add(keyframeNavigatorRow(
+                keyframes: { [unowned self] in segment(self.document.project)?.keyframes ?? [] },
+                localTime: { [unowned self] in segment(self.document.project).map(self.annotationLocalTime) ?? 0 },
+                seek: { [unowned self] local in
+                    guard let s = segment(self.document.project) else { return }
+                    self.controller?.playback.seek(toSource: s.startTime + local)
+                },
+                toggle: { [unowned self] in
+                    guard let s = segment(self.document.project) else { return }
+                    let t = self.annotationLocalTime(s)
+                    self.document.edit([.render]) { project in
+                        project.annotations.first { $0.id == id }?.keyframes = VideoKeyframeEditing.togglingKeyframe(at: t, in: s.keyframes)
+                    }
+                }))
+            add(easingPopupRow(
+                keyframes: { [unowned self] in segment(self.document.project)?.keyframes ?? [] },
+                localTime: { [unowned self] in segment(self.document.project).map(self.annotationLocalTime) ?? 0 }) { p, kfs in
+                segment(p)?.keyframes = kfs
+            })
+            transformRows.append(slider(L("Opacity"), 0...1, get: { [unowned self] in
+                guard let s = segment(self.document.project) else { return 1 }
+                return VideoKeyframes.sample(s.keyframes, at: self.annotationLocalTime(s))?.opacity ?? 1
+            }, format: { "\(Int(($0 * 100).rounded()))%" }) { [unowned self] p, v in
+                guard let s = segment(p) else { return }
+                let t = self.annotationLocalTime(s)
+                s.keyframes = VideoKeyframeEditing.autoKeyed(s.keyframes, at: t) { $0.opacity = v }
+            })
+        }
+        transformRows.append(slider(L("Scale"), VideoAnnotationSegment.minScale...VideoAnnotationSegment.maxScale,
+               get: { [unowned self] in segment(self.document.project)?.transform(at: self.currentSourceTime).scale ?? 1 },
+               format: { "\(Int(($0 * 100).rounded()))%" }) { [unowned self] p, v in
+            guard let s = segment(p) else { return }
+            let newScale = VideoAnnotationSegment.clampedScale(v)
+            if VideoKeyframeEditing.isAnimated(s.keyframes) {
+                let t = self.annotationLocalTime(s)
+                s.keyframes = VideoKeyframeEditing.autoKeyed(s.keyframes, at: t) { $0.scale = newScale }
+            } else {
+                s.scale = newScale
+            }
+        })
+        transformRows.append(slider(L("Rotation"), -180...180,
+               get: { [unowned self] in (segment(self.document.project)?.transform(at: self.currentSourceTime).rotation ?? 0) * 180 / .pi },
+               format: { String(format: "%.0f°", $0) }) { [unowned self] p, v in
+            guard let s = segment(p) else { return }
+            let radians = v * .pi / 180
+            if VideoKeyframeEditing.isAnimated(s.keyframes) {
+                let t = self.annotationLocalTime(s)
+                s.keyframes = VideoKeyframeEditing.autoKeyed(s.keyframes, at: t) { $0.rotation = radians }
+            } else {
+                s.rotation = radians
+            }
+        })
+        add(InspectorCard(transformRows))
         add(button(L("Reset Transform"), symbol: "arrow.counterclockwise", action: #selector(resetAnnotationTransform)))
+    }
+
+    private func setAnnotationAnimated(id: UUID, on: Bool) {
+        if on {
+            guard let seg = document.project.annotations.first(where: { $0.id == id }) else { return }
+            let t = annotationLocalTime(seg)
+            document.edit([.render]) { project in
+                project.annotations.first { $0.id == id }?.keyframes = VideoKeyframes.setting(seg.staticTransform, at: t, in: seg.keyframes)
+            }
+            rebuild()
+            return
+        }
+        confirmClearingKeyframes { [weak self] in
+            guard let self, let seg = self.document.project.annotations.first(where: { $0.id == id }) else { return }
+            let sampled = seg.transform(at: self.currentSourceTime)
+            self.document.edit([.render]) { project in
+                guard let seg = project.annotations.first(where: { $0.id == id }) else { return }
+                seg.offset = sampled.offset
+                seg.scale = VideoAnnotationSegment.clampedScale(sampled.scale)
+                seg.rotation = sampled.rotation
+                seg.keyframes = []
+            }
+            self.rebuild()
+        }
     }
 
     @objc private func resetAnnotationTransform() {
         guard case .annotation(let id)? = document.selection else { return }
-        document.edit([.render]) { project in
-            guard let seg = project.annotations.first(where: { $0.id == id }) else { return }
-            seg.offset = .zero
-            seg.scale = 1
-            seg.rotation = 0
+        guard let seg = document.project.annotations.first(where: { $0.id == id }) else { return }
+        guard VideoKeyframeEditing.isAnimated(seg.keyframes) else {
+            document.edit([.render]) { project in
+                guard let seg = project.annotations.first(where: { $0.id == id }) else { return }
+                seg.offset = .zero
+                seg.scale = 1
+                seg.rotation = 0
+            }
+            return
+        }
+        // Animated: leaving keyframes in place would immediately override
+        // the reset, so this stops animating too — same confirmation as the
+        // Animate toggle's OFF switch.
+        confirmClearingKeyframes { [weak self] in
+            guard let self else { return }
+            self.document.edit([.render]) { project in
+                guard let seg = project.annotations.first(where: { $0.id == id }) else { return }
+                seg.offset = .zero
+                seg.scale = 1
+                seg.rotation = 0
+                seg.keyframes = []
+            }
+            self.rebuild()
         }
     }
 
@@ -971,18 +1129,79 @@ final class VideoInspectorView: NSView {
 
         add(InspectorSectionHeader(L("Appearance")))
         add(InspectorCard([
+            // The base opacity — unaffected by animation; a keyframe
+            // opacity (below, while animated) multiplies on top of it.
             slider(L("Opacity"), 0...1, get: { [unowned self] in segment(self.document.project)?.opacity ?? 1 },
                    format: { "\(Int(($0 * 100).rounded()))%" }) { p, v in segment(p)?.opacity = v },
-            slider(L("Size"), 0.05...0.95, get: { [unowned self] in Double(segment(self.document.project)?.rect.height ?? 0.3) },
-                   format: { "\(Int(($0 * 100).rounded()))%" }) { p, v in
+            slider(L("Size"), 0.05...0.95, get: { [unowned self] in
+                guard let s = segment(self.document.project) else { return 0.3 }
+                return Double(s.rect.height) * s.transform(atLocal: self.overlayLocalTime(s)).scale
+            }, format: { "\(Int(($0 * 100).rounded()))%" }) { [unowned self] p, v in
                 guard let s = segment(p) else { return }
-                let factor = CGFloat(v) / max(0.0001, s.rect.height)
-                s.rect = VideoProjectLimits.normalizedRect(VideoOverlayEditing.scaledRect(s.rect, by: factor))
+                if VideoKeyframeEditing.isAnimated(s.keyframes) {
+                    let newScale = min(VideoKeyframes.maxScale, max(VideoKeyframes.minScale, v / max(0.0001, Double(s.rect.height))))
+                    let t = self.overlayLocalTime(s)
+                    s.keyframes = VideoKeyframeEditing.autoKeyed(s.keyframes, at: t) { $0.scale = newScale }
+                } else {
+                    let factor = CGFloat(v) / max(0.0001, s.rect.height)
+                    s.rect = VideoProjectLimits.normalizedRect(VideoOverlayEditing.scaledRect(s.rect, by: factor))
+                }
             },
-            slider(L("Rotation"), -180...180, get: { [unowned self] in (segment(self.document.project)?.rotation ?? 0) * 180 / .pi },
-                   format: { String(format: "%.0f°", $0) }) { p, v in segment(p)?.rotation = v * .pi / 180 },
+            slider(L("Rotation"), -180...180, get: { [unowned self] in
+                guard let s = segment(self.document.project) else { return 0 }
+                return s.transform(atLocal: self.overlayLocalTime(s)).rotation * 180 / .pi
+            }, format: { String(format: "%.0f°", $0) }) { [unowned self] p, v in
+                guard let s = segment(p) else { return }
+                let radians = v * .pi / 180
+                if VideoKeyframeEditing.isAnimated(s.keyframes) {
+                    let t = self.overlayLocalTime(s)
+                    s.keyframes = VideoKeyframeEditing.autoKeyed(s.keyframes, at: t) { $0.rotation = radians }
+                } else {
+                    s.rotation = radians
+                }
+            },
         ]))
         add(button(L("Reset Size"), symbol: "arrow.counterclockwise", action: #selector(resetOverlaySize)))
+
+        add(InspectorSectionHeader(L("Transform")))
+        let isAnimated = VideoKeyframeEditing.isAnimated(seg.keyframes)
+        add(InspectorSwitchRow(title: L("Animate"), subtitle: L("Keyframe the transform and opacity over time."),
+                               isOn: isAnimated) { [weak self] on in
+            self?.setOverlayAnimated(id: id, on: on)
+        })
+        if isAnimated {
+            add(keyframeNavigatorRow(
+                keyframes: { [unowned self] in segment(self.document.project)?.keyframes ?? [] },
+                localTime: { [unowned self] in segment(self.document.project).map(self.overlayLocalTime) ?? 0 },
+                seek: { [unowned self] local in
+                    guard let s = segment(self.document.project), let playback = self.controller?.playback else { return }
+                    let source = VideoKeyframeEditing.overlaySourceTime(forLocal: local, overlayStartTime: s.startTime,
+                        compositionTime: playback.compositionTime(forSource:), sourceTime: playback.sourceTime(forComposition:))
+                    playback.seek(toSource: source)
+                },
+                toggle: { [unowned self] in
+                    guard let s = segment(self.document.project) else { return }
+                    let t = self.overlayLocalTime(s)
+                    self.document.edit([.render]) { project in
+                        project.overlays.first { $0.id == id }?.keyframes = VideoKeyframeEditing.togglingKeyframe(at: t, in: s.keyframes)
+                    }
+                }))
+            add(easingPopupRow(
+                keyframes: { [unowned self] in segment(self.document.project)?.keyframes ?? [] },
+                localTime: { [unowned self] in segment(self.document.project).map(self.overlayLocalTime) ?? 0 }) { p, kfs in
+                segment(p)?.keyframes = kfs
+            })
+            add(InspectorCard([
+                slider(L("Opacity"), 0...1, get: { [unowned self] in
+                    guard let s = segment(self.document.project) else { return 1 }
+                    return s.transform(atLocal: self.overlayLocalTime(s)).opacity
+                }, format: { "\(Int(($0 * 100).rounded()))%" }) { [unowned self] p, v in
+                    guard let s = segment(p) else { return }
+                    let t = self.overlayLocalTime(s)
+                    s.keyframes = VideoKeyframeEditing.autoKeyed(s.keyframes, at: t) { $0.opacity = v }
+                },
+            ]))
+        }
 
         add(InspectorSectionHeader(L("Timing")))
         add(InspectorCard([
@@ -998,13 +1217,53 @@ final class VideoInspectorView: NSView {
         controller?.replaceOverlayMedia(id: id)
     }
 
+    private func setOverlayAnimated(id: UUID, on: Bool) {
+        if on {
+            guard let seg = document.project.overlays.first(where: { $0.id == id }) else { return }
+            let t = overlayLocalTime(seg)
+            document.edit([.render]) { project in
+                project.overlays.first { $0.id == id }?.keyframes = VideoKeyframes.setting(seg.staticTransform, at: t, in: seg.keyframes)
+            }
+            rebuild()
+            return
+        }
+        confirmClearingKeyframes { [weak self] in
+            guard let self, let seg = self.document.project.overlays.first(where: { $0.id == id }) else { return }
+            let sampled = seg.transform(atLocal: self.overlayLocalTime(seg))
+            self.document.edit([.render]) { project in
+                guard let seg = project.overlays.first(where: { $0.id == id }) else { return }
+                seg.rect = VideoProjectLimits.normalizedRect(VideoOverlayEditing.transformedRect(seg.rect, offset: sampled.offset, scale: sampled.scale))
+                seg.rotation = sampled.rotation
+                seg.keyframes = []
+            }
+            self.rebuild()
+        }
+    }
+
     @objc private func resetOverlaySize() {
         guard case .overlay(let id)? = document.selection else { return }
+        guard let seg = document.project.overlays.first(where: { $0.id == id }) else { return }
         let contentSize = document.contentSize
-        document.edit([.render]) { project in
-            guard let seg = project.overlays.first(where: { $0.id == id }) else { return }
-            seg.rect = VideoProjectLimits.normalizedRect(VideoOverlaySegment.defaultRect(mediaSize: seg.mediaSize, contentSize: contentSize))
-            seg.rotation = 0
+        guard VideoKeyframeEditing.isAnimated(seg.keyframes) else {
+            document.edit([.render]) { project in
+                guard let seg = project.overlays.first(where: { $0.id == id }) else { return }
+                seg.rect = VideoProjectLimits.normalizedRect(VideoOverlaySegment.defaultRect(mediaSize: seg.mediaSize, contentSize: contentSize))
+                seg.rotation = 0
+            }
+            return
+        }
+        // Animated: same stop-animating confirmation as "Reset Transform"
+        // and the Animate toggle — otherwise the reset would be invisible,
+        // immediately overridden by the sampled keyframe transform.
+        confirmClearingKeyframes { [weak self] in
+            guard let self else { return }
+            self.document.edit([.render]) { project in
+                guard let seg = project.overlays.first(where: { $0.id == id }) else { return }
+                seg.rect = VideoProjectLimits.normalizedRect(VideoOverlaySegment.defaultRect(mediaSize: seg.mediaSize, contentSize: contentSize))
+                seg.rotation = 0
+                seg.keyframes = []
+            }
+            self.rebuild()
         }
     }
 
@@ -1064,6 +1323,62 @@ private final class InspectorPopupRow: NSView {
     func setSelected(_ index: Int) { popupButton.selectItem(at: index) }
 
     required init?(coder: NSCoder) { fatalError() }
+}
+
+private final class KeyframeNavigatorHandler: NSObject {
+    static var key: UInt8 = 0
+    let onPrev: () -> Void, onToggle: () -> Void, onNext: () -> Void
+    init(onPrev: @escaping () -> Void, onToggle: @escaping () -> Void, onNext: @escaping () -> Void) {
+        self.onPrev = onPrev; self.onToggle = onToggle; self.onNext = onNext
+    }
+    @objc func prev() { onPrev() }
+    @objc func toggle() { onToggle() }
+    @objc func next() { onNext() }
+}
+
+/// "◀  ◆  ▶" row: seek to the previous/next keyframe, or add/remove one at
+/// the playhead. `update(...)` (driven by the inspector's `refreshers`) keeps
+/// the diamond's fill and the arrows' enabled state in sync with the playhead.
+private final class KeyframeNavigatorRow: NSView {
+    private let prevButton: VideoIconButton
+    private let toggleButton: VideoIconButton
+    private let nextButton: VideoIconButton
+    private let handler: KeyframeNavigatorHandler
+
+    init(onPrev: @escaping () -> Void, onToggle: @escaping () -> Void, onNext: @escaping () -> Void) {
+        prevButton = VideoIconButton(symbol: "chevron.left", size: 12, tooltip: L("Previous Keyframe"), target: nil, action: nil)
+        toggleButton = VideoIconButton(symbol: "diamond", size: 13, tooltip: L("Add Keyframe"), target: nil, action: nil)
+        nextButton = VideoIconButton(symbol: "chevron.right", size: 12, tooltip: L("Next Keyframe"), target: nil, action: nil)
+        handler = KeyframeNavigatorHandler(onPrev: onPrev, onToggle: onToggle, onNext: onNext)
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        prevButton.target = handler; prevButton.action = #selector(KeyframeNavigatorHandler.prev)
+        toggleButton.target = handler; toggleButton.action = #selector(KeyframeNavigatorHandler.toggle)
+        nextButton.target = handler; nextButton.action = #selector(KeyframeNavigatorHandler.next)
+        for button in [prevButton, toggleButton, nextButton] {
+            button.widthAnchor.constraint(equalToConstant: 26).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 26).isActive = true
+        }
+        let stack = NSStackView(views: [prevButton, toggleButton, nextButton])
+        stack.orientation = .horizontal
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            heightAnchor.constraint(equalToConstant: 30),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stack.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    func update(hasKeyframeHere: Bool, hasPrev: Bool, hasNext: Bool) {
+        toggleButton.image = VideoEditorStyle.symbol(hasKeyframeHere ? "diamond.fill" : "diamond", size: 13)
+        toggleButton.toolTip = hasKeyframeHere ? L("Remove Keyframe") : L("Add Keyframe")
+        prevButton.isEnabled = hasPrev
+        nextButton.isEnabled = hasNext
+    }
 }
 
 // MARK: - Swatch grid

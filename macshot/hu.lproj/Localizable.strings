@@ -899,3 +899,21 @@
 "Scale" = "Méretezés";
 "Rotation" = "Forgatás";
 "Reset Transform" = "Átalakítás visszaállítása";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Animálás";
+"Keyframe the transform and opacity over time." = "Az átalakítás és az átlátszatlanság kulcskockázása idővel.";
+"Stop Animating?" = "Leállítja az animálást?";
+"This removes its keyframes and keeps the current position as its transform." = "Ez eltávolítja a kulcskockáit, és megtartja az aktuális pozíciót átalakításként.";
+"Stop Animating" = "Animálás leállítása";
+"Previous Keyframe" = "Előző kulcskocka";
+"Add Keyframe" = "Kulcskocka hozzáadása";
+"Remove Keyframe" = "Kulcskocka eltávolítása";
+"Next Keyframe" = "Következő kulcskocka";
+"Easing" = "Lágyítás";
+"Linear" = "Lineáris";
+"Ease In" = "Lágyítás be";
+"Ease Out" = "Lágyítás ki";
+"Ease In/Out" = "Lágyítás be/ki";
+"Hold" = "Tartás";
+"Delete Keyframe" = "Kulcskocka törlése";

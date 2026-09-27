@@ -899,3 +899,21 @@
 "Scale" = "Skaalaus";
 "Rotation" = "Kierto";
 "Reset Transform" = "Palauta muunnos";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Animoi";
+"Keyframe the transform and opacity over time." = "Avainnusta muunnos ja peittävyys ajan myötä.";
+"Stop Animating?" = "Pysäytetäänkö animointi?";
+"This removes its keyframes and keeps the current position as its transform." = "Tämä poistaa sen avainkuvat ja säilyttää nykyisen sijainnin sen muunnoksena.";
+"Stop Animating" = "Pysäytä animointi";
+"Previous Keyframe" = "Edellinen avainkuva";
+"Add Keyframe" = "Lisää avainkuva";
+"Remove Keyframe" = "Poista avainkuva";
+"Next Keyframe" = "Seuraava avainkuva";
+"Easing" = "Tasoitus";
+"Linear" = "Lineaarinen";
+"Ease In" = "Pehmeä alku";
+"Ease Out" = "Pehmeä loppu";
+"Ease In/Out" = "Pehmeä alku/loppu";
+"Hold" = "Pito";
+"Delete Keyframe" = "Poista avainkuva";

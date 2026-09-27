@@ -901,3 +901,21 @@
 "Scale" = "Sukat";
 "Rotation" = "Pag-ikot";
 "Reset Transform" = "I-reset ang Pagbabago";
+
+/* Keyframe animation (video editor) */
+"Animate" = "I-animate";
+"Keyframe the transform and opacity over time." = "I-keyframe ang transform at opacity sa paglipas ng panahon.";
+"Stop Animating?" = "Ihinto ang pag-animate?";
+"This removes its keyframes and keeps the current position as its transform." = "Aalisin nito ang mga keyframe nito at pananatilihin ang kasalukuyang posisyon bilang transform nito.";
+"Stop Animating" = "Ihinto ang Pag-animate";
+"Previous Keyframe" = "Nakaraang Keyframe";
+"Add Keyframe" = "Magdagdag ng Keyframe";
+"Remove Keyframe" = "Alisin ang Keyframe";
+"Next Keyframe" = "Susunod na Keyframe";
+"Easing" = "Easing";
+"Linear" = "Linear";
+"Ease In" = "Ease In";
+"Ease Out" = "Ease Out";
+"Ease In/Out" = "Ease In/Out";
+"Hold" = "Hold";
+"Delete Keyframe" = "Alisin ang Keyframe";

@@ -899,3 +899,21 @@
 "Scale" = "Масштаб";
 "Rotation" = "Обертання";
 "Reset Transform" = "Скинути трансформацію";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Анімувати";
+"Keyframe the transform and opacity over time." = "Задайте ключові кадри для трансформації та непрозорості з часом.";
+"Stop Animating?" = "Зупинити анімацію?";
+"This removes its keyframes and keeps the current position as its transform." = "Це видалить його ключові кадри та збереже поточне положення як трансформацію.";
+"Stop Animating" = "Зупинити анімацію";
+"Previous Keyframe" = "Попередній ключовий кадр";
+"Add Keyframe" = "Додати ключовий кадр";
+"Remove Keyframe" = "Видалити ключовий кадр";
+"Next Keyframe" = "Наступний ключовий кадр";
+"Easing" = "Плавність";
+"Linear" = "Лінійний";
+"Ease In" = "Плавний вхід";
+"Ease Out" = "Плавний вихід";
+"Ease In/Out" = "Плавний вхід/вихід";
+"Hold" = "Утримання";
+"Delete Keyframe" = "Видалити ключовий кадр";

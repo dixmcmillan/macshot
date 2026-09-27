@@ -901,3 +901,21 @@
 "Scale" = "Schaal";
 "Rotation" = "Rotatie";
 "Reset Transform" = "Transformatie herstellen";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Animeren";
+"Keyframe the transform and opacity over time." = "Keyframe de transformatie en dekking na verloop van tijd.";
+"Stop Animating?" = "Animatie stoppen?";
+"This removes its keyframes and keeps the current position as its transform." = "Hiermee worden de keyframes verwijderd en blijft de huidige positie behouden als transformatie.";
+"Stop Animating" = "Animatie stoppen";
+"Previous Keyframe" = "Vorige keyframe";
+"Add Keyframe" = "Keyframe toevoegen";
+"Remove Keyframe" = "Keyframe verwijderen";
+"Next Keyframe" = "Volgende keyframe";
+"Easing" = "Easing";
+"Linear" = "Lineair";
+"Ease In" = "Ease in";
+"Ease Out" = "Ease uit";
+"Ease In/Out" = "Ease in/uit";
+"Hold" = "Vasthouden";
+"Delete Keyframe" = "Keyframe verwijderen";

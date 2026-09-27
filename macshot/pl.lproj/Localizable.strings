@@ -899,3 +899,21 @@
 "Scale" = "Skala";
 "Rotation" = "Obrót";
 "Reset Transform" = "Zresetuj transformację";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Animuj";
+"Keyframe the transform and opacity over time." = "Ustaw kadry kluczowe dla transformacji i krycia w czasie.";
+"Stop Animating?" = "Zatrzymać animację?";
+"This removes its keyframes and keeps the current position as its transform." = "Spowoduje to usunięcie kadrów kluczowych i zachowanie bieżącej pozycji jako transformacji.";
+"Stop Animating" = "Zatrzymaj animację";
+"Previous Keyframe" = "Poprzedni kadr kluczowy";
+"Add Keyframe" = "Dodaj kadr kluczowy";
+"Remove Keyframe" = "Usuń kadr kluczowy";
+"Next Keyframe" = "Następny kadr kluczowy";
+"Easing" = "Płynność";
+"Linear" = "Liniowy";
+"Ease In" = "Płynne wejście";
+"Ease Out" = "Płynne wyjście";
+"Ease In/Out" = "Płynne wejście/wyjście";
+"Hold" = "Wstrzymanie";
+"Delete Keyframe" = "Usuń kadr kluczowy";

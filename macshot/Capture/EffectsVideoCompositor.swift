@@ -137,6 +137,15 @@ final class EffectsCompositionInstruction: NSObject, AVVideoCompositionInstructi
         let offset: CGPoint
         let scale: Double
         let rotation: Double
+        /// Animated transform (`VideoAnnotationSegment.keyframes`), duplicated
+        /// onto every layer of the segment exactly like `offset`/`scale`/
+        /// `rotation` already are. Sampled at segment-local *source* time
+        /// (`time - startTime`) by `VideoSceneRenderer.placeAnnotationLayer`;
+        /// when it yields a value it replaces `offset`/`scale`/`rotation` for
+        /// that frame and its opacity multiplies the layer's own. Empty (the
+        /// default) means every existing call site — and any segment saved
+        /// before keyframing existed — renders exactly as before.
+        let keyframes: [VideoKeyframe]
 
         /// Explicit (rather than the synthesized memberwise) initializer:
         /// giving a stored `let` a default value drops it from Swift's
@@ -146,7 +155,8 @@ final class EffectsCompositionInstruction: NSObject, AVVideoCompositionInstructi
         init(segmentID: UUID, startTime: Double, endTime: Double, rect: CGRect, image: CIImage, layerIndex: Int,
              fadeIn: Double, fadeOut: Double, entrance: VideoAnnotationSegment.Animation,
              exit: VideoAnnotationSegment.Animation, stagger: Double, reveal: Reveal?,
-             pivot: CGPoint = CGPoint(x: 0.5, y: 0.5), offset: CGPoint = .zero, scale: Double = 1, rotation: Double = 0) {
+             pivot: CGPoint = CGPoint(x: 0.5, y: 0.5), offset: CGPoint = .zero, scale: Double = 1, rotation: Double = 0,
+             keyframes: [VideoKeyframe] = []) {
             self.segmentID = segmentID
             self.startTime = startTime
             self.endTime = endTime
@@ -163,6 +173,7 @@ final class EffectsCompositionInstruction: NSObject, AVVideoCompositionInstructi
             self.offset = offset
             self.scale = scale
             self.rotation = rotation
+            self.keyframes = keyframes
         }
 
         /// Effective entrance/exit + reveal geometry pre-resolved: `draw`

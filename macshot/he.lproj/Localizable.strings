@@ -901,3 +901,21 @@
 "Scale" = "קנה מידה";
 "Rotation" = "סיבוב";
 "Reset Transform" = "איפוס טרנספורמציה";
+
+/* Keyframe animation (video editor) */
+"Animate" = "הנפשה";
+"Keyframe the transform and opacity over time." = "הגדירו פריימים מפתח לטרנספורמציה ולאטימות לאורך זמן.";
+"Stop Animating?" = "להפסיק את ההנפשה?";
+"This removes its keyframes and keeps the current position as its transform." = "פעולה זו מסירה את פריימי המפתח שלו ושומרת את המיקום הנוכחי כטרנספורמציה שלו.";
+"Stop Animating" = "הפסק הנפשה";
+"Previous Keyframe" = "פריים מפתח קודם";
+"Add Keyframe" = "הוסף פריים מפתח";
+"Remove Keyframe" = "הסר פריים מפתח";
+"Next Keyframe" = "פריים מפתח הבא";
+"Easing" = "החלקה";
+"Linear" = "ליניארי";
+"Ease In" = "החלקת כניסה";
+"Ease Out" = "החלקת יציאה";
+"Ease In/Out" = "החלקת כניסה/יציאה";
+"Hold" = "החזקה";
+"Delete Keyframe" = "מחק פריים מפתח";

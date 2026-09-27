@@ -158,9 +158,17 @@ final class VideoStageOverlay: NSView {
     /// handle. Model values are captured once at mouse-down and every
     /// `mouseDragged` recomputes an absolute new value from them (never
     /// accumulates deltas), matching how `drag`'s `startRect` is used.
-    private var rotatableDrag: (handle: Handle, startPoint: NSPoint, startViewRect: CGRect, startRotation: CGFloat,
-                                annotationPivotContent: CGPoint?, annotationStartOffset: CGPoint,
-                                annotationStartScale: Double, overlayStartRect: CGRect)?
+    ///
+    /// `annotationStartOffset`/`annotationStartScale` and
+    /// `overlayStartOffset`/`overlayStartScale` are the *sampled* transform
+    /// at mouse-down (identity/`rect`-relative-zero when not animated, via
+    /// `VideoAnnotationSegment.transform(at:)`/`VideoOverlaySegment.transform(atLocal:)`)
+    /// so a drag on an animated item continues smoothly from what's shown.
+    private typealias RotatableDrag = (handle: Handle, startPoint: NSPoint, startViewRect: CGRect, startRotation: CGFloat,
+                                       annotationPivotContent: CGPoint?, annotationStartOffset: CGPoint,
+                                       annotationStartScale: Double, overlayStartRect: CGRect,
+                                       overlayStartOffset: CGPoint, overlayStartScale: Double)
+    private var rotatableDrag: RotatableDrag?
     /// How far above the box's rotated top edge the rotation handle floats.
     private static let rotationHandleDistance: CGFloat = 26
     private var textEditor: InlineVideoTextView?
@@ -210,6 +218,23 @@ final class VideoStageOverlay: NSView {
 
     private var stagePlanner: VideoRenderPlanner? { stagePlayback?.planner }
 
+    // MARK: Keyframe local time
+
+    /// The current playhead, source-asset seconds — `0` only if playback
+    /// isn't wired up yet (never in practice).
+    private var currentSourceTime: Double { stagePlayback?.currentSourceTime ?? 0 }
+
+    private func annotationLocalTime(_ segment: VideoAnnotationSegment) -> Double {
+        VideoKeyframeEditing.drawingLocalTime(sourceTime: currentSourceTime, startTime: segment.startTime,
+                                              duration: segment.duration)
+    }
+
+    private func overlayLocalTime(_ segment: VideoOverlaySegment) -> Double {
+        guard let playback = stagePlayback else { return 0 }
+        return VideoKeyframeEditing.overlayLocalTime(sourceTime: currentSourceTime, overlayStartTime: segment.startTime,
+                                                     duration: segment.duration, compositionTime: playback.compositionTime(forSource:))
+    }
+
     private func currentItem() -> EditedItem? {
         guard let layout else { return nil }
         let canvas = layout.canvasSize
@@ -239,8 +264,13 @@ final class VideoStageOverlay: NSView {
             return EditedItem(rect: sceneRect(forContent: t.rect), color: VideoEditorStyle.text, label: "", rotation: nil)
         case .overlay(let id)?:
             guard let o = p.overlays.first(where: { $0.id == id }) else { return nil }
-            return EditedItem(rect: sceneRect(forContent: o.rect), color: VideoEditorStyle.overlay, label: "",
-                              rotation: CGFloat(o.rotation))
+            // Sampled at the playhead when animated (the transform then
+            // moves/scales the box relative to `rect` and replaces
+            // `rotation`); otherwise `staticTransform` is `rect` unchanged.
+            let sampled = o.transform(atLocal: overlayLocalTime(o))
+            let box = VideoOverlayEditing.transformedRect(o.rect, offset: sampled.offset, scale: sampled.scale)
+            return EditedItem(rect: sceneRect(forContent: box), color: VideoEditorStyle.overlay, label: "",
+                              rotation: CGFloat(sampled.rotation))
         case .annotation(let id)?:
             guard let seg = p.annotations.first(where: { $0.id == id }),
                   let bounds = stagePlanner?.annotationBounds(segmentID: id) else { return nil }
@@ -249,12 +279,15 @@ final class VideoStageOverlay: NSView {
             // them through crop/camera the same affine way any other rect
             // gets placed, so the scaling here is safe (it isn't a rotation,
             // which would need pixel space — see `VideoSceneRenderer`).
-            let pivot = CGPoint(x: bounds.pivot.x + seg.offset.x, y: bounds.pivot.y + seg.offset.y)
-            let scale = CGFloat(seg.scale)
+            // `transform(at:)` samples keyframes when animated, else
+            // `offset`/`scale` unchanged.
+            let sampled = seg.transform(at: currentSourceTime)
+            let pivot = CGPoint(x: bounds.pivot.x + sampled.offset.x, y: bounds.pivot.y + sampled.offset.y)
+            let scale = CGFloat(sampled.scale)
             let box = CGRect(x: pivot.x - bounds.contentRect.width * scale / 2, y: pivot.y - bounds.contentRect.height * scale / 2,
                              width: bounds.contentRect.width * scale, height: bounds.contentRect.height * scale)
             return EditedItem(rect: sceneRect(forContent: box), color: VideoEditorStyle.accent, label: "",
-                              rotation: CGFloat(seg.rotation))
+                              rotation: CGFloat(sampled.rotation))
         default:
             return nil
         }
@@ -406,20 +439,31 @@ final class VideoStageOverlay: NSView {
                 ?? (RotatedBoxEditing.contains(p, in: r, rotation: rotation) ? .body : nil)
             guard let handle else { return }
             var pivotContent: CGPoint?
-            var startOffset = CGPoint.zero, startScale = 1.0, overlayStartRect = CGRect.zero
+            var startOffset = CGPoint.zero, startScale = 1.0
+            var overlayStartRect = CGRect.zero, overlayStartOffset = CGPoint.zero, overlayStartScale = 1.0
             switch document.selection {
             case .annotation(let id)?:
                 if let seg = document.project.annotations.first(where: { $0.id == id }) {
-                    startOffset = seg.offset; startScale = seg.scale
+                    // Sampled at the playhead: identity to `staticTransform`
+                    // when not animated, so this is exactly `seg.offset`/
+                    // `seg.scale` there — only animated items start from
+                    // something other than the static fields.
+                    let sampled = seg.transform(at: currentSourceTime)
+                    startOffset = sampled.offset; startScale = sampled.scale
                 }
                 pivotContent = stagePlanner?.annotationBounds(segmentID: id)?.pivot
             case .overlay(let id)?:
-                if let o = document.project.overlays.first(where: { $0.id == id }) { overlayStartRect = o.rect }
+                if let o = document.project.overlays.first(where: { $0.id == id }) {
+                    overlayStartRect = o.rect
+                    let sampled = o.transform(atLocal: overlayLocalTime(o))
+                    overlayStartOffset = sampled.offset; overlayStartScale = sampled.scale
+                }
             default: break
             }
             rotatableDrag = (handle: handle, startPoint: p, startViewRect: r, startRotation: rotation,
                              annotationPivotContent: pivotContent, annotationStartOffset: startOffset,
-                             annotationStartScale: startScale, overlayStartRect: overlayStartRect)
+                             annotationStartScale: startScale, overlayStartRect: overlayStartRect,
+                             overlayStartOffset: overlayStartOffset, overlayStartScale: overlayStartScale)
             document.beginGesture()
             return
         }
@@ -466,10 +510,7 @@ final class VideoStageOverlay: NSView {
     /// pivot), rotation handle, or body (move) — recomputed as an absolute
     /// new value from the captured mouse-down state every call, never
     /// accumulated, matching `resized`'s pattern for the non-rotatable path.
-    private func applyRotatableDrag(_ rd: (handle: Handle, startPoint: NSPoint, startViewRect: CGRect, startRotation: CGFloat,
-                                          annotationPivotContent: CGPoint?, annotationStartOffset: CGPoint,
-                                          annotationStartScale: Double, overlayStartRect: CGRect),
-                                    to p: NSPoint, snap: Bool) {
+    private func applyRotatableDrag(_ rd: RotatableDrag, to p: NSPoint, snap: Bool) {
         let center = RotatedBoxEditing.center(of: rd.startViewRect)
         switch rd.handle {
         case .rotate:
@@ -493,10 +534,7 @@ final class VideoStageOverlay: NSView {
         }
     }
 
-    private func applyMove(_ rd: (handle: Handle, startPoint: NSPoint, startViewRect: CGRect, startRotation: CGFloat,
-                                  annotationPivotContent: CGPoint?, annotationStartOffset: CGPoint,
-                                  annotationStartScale: Double, overlayStartRect: CGRect),
-                           dxScene: CGFloat, dyScene: CGFloat) {
+    private func applyMove(_ rd: RotatableDrag, dxScene: CGFloat, dyScene: CGFloat) {
         guard let layout else { return }
         let startScene = normalized(viewRect: rd.startViewRect)
         let newCenterScene = CGPoint(x: startScene.midX + dxScene, y: startScene.midY + dyScene)
@@ -506,36 +544,61 @@ final class VideoStageOverlay: NSView {
                                  width: startScene.width, height: startScene.height)
             let a = layout.contentNormalized(forScene: CGPoint(x: newRect.minX, y: newRect.minY))
             let b = layout.contentNormalized(forScene: CGPoint(x: newRect.maxX, y: newRect.maxY))
+            let newContentRect = CGRect(x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y)
             document.edit([.render]) { project in
-                project.overlays.first { $0.id == id }?.rect =
-                    VideoProjectLimits.normalizedRect(CGRect(x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y))
+                guard let seg = project.overlays.first(where: { $0.id == id }) else { return }
+                if VideoKeyframeEditing.isAnimated(seg.keyframes) {
+                    // `rect` stays put; the dragged box (already offset by
+                    // the sampled keyframe) moves relative to it instead.
+                    let newOffset = VideoOverlayEditing.moveOffset(
+                        newCenter: CGPoint(x: newContentRect.midX, y: newContentRect.midY), rect: seg.rect)
+                    let t = overlayLocalTime(seg)
+                    seg.keyframes = VideoKeyframeEditing.autoKeyed(seg.keyframes, at: t) { $0.offset = newOffset }
+                } else {
+                    seg.rect = VideoProjectLimits.normalizedRect(newContentRect)
+                }
             }
         case .annotation(let id)?:
             guard let pivot = rd.annotationPivotContent else { return }
             let newCenterContent = layout.contentNormalized(forScene: newCenterScene)
             document.edit([.render]) { project in
-                project.annotations.first { $0.id == id }?.offset =
-                    CGPoint(x: newCenterContent.x - pivot.x, y: newCenterContent.y - pivot.y)
+                guard let seg = project.annotations.first(where: { $0.id == id }) else { return }
+                let newOffset = CGPoint(x: newCenterContent.x - pivot.x, y: newCenterContent.y - pivot.y)
+                if VideoKeyframeEditing.isAnimated(seg.keyframes) {
+                    let t = annotationLocalTime(seg)
+                    seg.keyframes = VideoKeyframeEditing.autoKeyed(seg.keyframes, at: t) { $0.offset = newOffset }
+                } else {
+                    seg.offset = newOffset
+                }
             }
         default:
             break
         }
     }
 
-    private func applyScale(_ rd: (handle: Handle, startPoint: NSPoint, startViewRect: CGRect, startRotation: CGFloat,
-                                   annotationPivotContent: CGPoint?, annotationStartOffset: CGPoint,
-                                   annotationStartScale: Double, overlayStartRect: CGRect),
-                            factor: Double) {
+    private func applyScale(_ rd: RotatableDrag, factor: Double) {
         switch document.selection {
         case .overlay(let id)?:
             document.edit([.render]) { project in
-                project.overlays.first { $0.id == id }?.rect =
-                    VideoProjectLimits.normalizedRect(VideoOverlayEditing.scaledRect(rd.overlayStartRect, by: CGFloat(factor)))
+                guard let seg = project.overlays.first(where: { $0.id == id }) else { return }
+                if VideoKeyframeEditing.isAnimated(seg.keyframes) {
+                    let newScale = min(VideoKeyframes.maxScale, max(VideoKeyframes.minScale, rd.overlayStartScale * factor))
+                    let t = overlayLocalTime(seg)
+                    seg.keyframes = VideoKeyframeEditing.autoKeyed(seg.keyframes, at: t) { $0.scale = newScale }
+                } else {
+                    seg.rect = VideoProjectLimits.normalizedRect(VideoOverlayEditing.scaledRect(rd.overlayStartRect, by: CGFloat(factor)))
+                }
             }
         case .annotation(let id)?:
             document.edit([.render]) { project in
-                project.annotations.first { $0.id == id }?.scale =
-                    VideoAnnotationSegment.clampedScale(rd.annotationStartScale * factor)
+                guard let seg = project.annotations.first(where: { $0.id == id }) else { return }
+                let newScale = VideoAnnotationSegment.clampedScale(rd.annotationStartScale * factor)
+                if VideoKeyframeEditing.isAnimated(seg.keyframes) {
+                    let t = annotationLocalTime(seg)
+                    seg.keyframes = VideoKeyframeEditing.autoKeyed(seg.keyframes, at: t) { $0.scale = newScale }
+                } else {
+                    seg.scale = newScale
+                }
             }
         default:
             break
@@ -545,9 +608,25 @@ final class VideoStageOverlay: NSView {
     private func applyRotation(_ radians: Double) {
         switch document.selection {
         case .overlay(let id)?:
-            document.edit([.render]) { project in project.overlays.first { $0.id == id }?.rotation = radians }
+            document.edit([.render]) { project in
+                guard let seg = project.overlays.first(where: { $0.id == id }) else { return }
+                if VideoKeyframeEditing.isAnimated(seg.keyframes) {
+                    let t = overlayLocalTime(seg)
+                    seg.keyframes = VideoKeyframeEditing.autoKeyed(seg.keyframes, at: t) { $0.rotation = radians }
+                } else {
+                    seg.rotation = radians
+                }
+            }
         case .annotation(let id)?:
-            document.edit([.render]) { project in project.annotations.first { $0.id == id }?.rotation = radians }
+            document.edit([.render]) { project in
+                guard let seg = project.annotations.first(where: { $0.id == id }) else { return }
+                if VideoKeyframeEditing.isAnimated(seg.keyframes) {
+                    let t = annotationLocalTime(seg)
+                    seg.keyframes = VideoKeyframeEditing.autoKeyed(seg.keyframes, at: t) { $0.rotation = radians }
+                } else {
+                    seg.rotation = radians
+                }
+            }
         default:
             break
         }
@@ -575,7 +654,14 @@ final class VideoStageOverlay: NSView {
             document.beginGesture()
             document.edit([.render]) { project in
                 guard let seg = project.annotations.first(where: { $0.id == id }) else { return }
-                seg.offset = CGPoint(x: seg.offset.x + deltaContent.x, y: seg.offset.y + deltaContent.y)
+                if VideoKeyframeEditing.isAnimated(seg.keyframes) {
+                    let t = self.annotationLocalTime(seg)
+                    seg.keyframes = VideoKeyframeEditing.autoKeyed(seg.keyframes, at: t) {
+                        $0.offset = CGPoint(x: $0.offset.x + deltaContent.x, y: $0.offset.y + deltaContent.y)
+                    }
+                } else {
+                    seg.offset = CGPoint(x: seg.offset.x + deltaContent.x, y: seg.offset.y + deltaContent.y)
+                }
             }
             document.endGesture()
             return true
@@ -583,7 +669,14 @@ final class VideoStageOverlay: NSView {
             document.beginGesture()
             document.edit([.render]) { project in
                 guard let o = project.overlays.first(where: { $0.id == id }) else { return }
-                o.rect = VideoProjectLimits.normalizedRect(o.rect.offsetBy(dx: deltaContent.x, dy: deltaContent.y))
+                if VideoKeyframeEditing.isAnimated(o.keyframes) {
+                    let t = self.overlayLocalTime(o)
+                    o.keyframes = VideoKeyframeEditing.autoKeyed(o.keyframes, at: t) {
+                        $0.offset = CGPoint(x: $0.offset.x + deltaContent.x, y: $0.offset.y + deltaContent.y)
+                    }
+                } else {
+                    o.rect = VideoProjectLimits.normalizedRect(o.rect.offsetBy(dx: deltaContent.x, dy: deltaContent.y))
+                }
             }
             document.endGesture()
             return true

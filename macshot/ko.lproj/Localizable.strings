@@ -901,3 +901,21 @@
 "Scale" = "배율";
 "Rotation" = "회전";
 "Reset Transform" = "변형 재설정";
+
+/* Keyframe animation (video editor) */
+"Animate" = "애니메이션";
+"Keyframe the transform and opacity over time." = "시간에 따라 변형과 불투명도에 키프레임을 설정합니다.";
+"Stop Animating?" = "애니메이션을 중지하시겠습니까?";
+"This removes its keyframes and keeps the current position as its transform." = "키프레임이 제거되고 현재 위치가 변형으로 유지됩니다.";
+"Stop Animating" = "애니메이션 중지";
+"Previous Keyframe" = "이전 키프레임";
+"Add Keyframe" = "키프레임 추가";
+"Remove Keyframe" = "키프레임 제거";
+"Next Keyframe" = "다음 키프레임";
+"Easing" = "이징";
+"Linear" = "선형";
+"Ease In" = "이즈 인";
+"Ease Out" = "이즈 아웃";
+"Ease In/Out" = "이즈 인/아웃";
+"Hold" = "홀드";
+"Delete Keyframe" = "키프레임 삭제";

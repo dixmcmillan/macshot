@@ -901,3 +901,21 @@
 "Scale" = "Escala";
 "Rotation" = "Rotació";
 "Reset Transform" = "Restableix la transformació";
+
+/* Keyframe animation (video editor) */
+"Animate" = "Anima";
+"Keyframe the transform and opacity over time." = "Defineix fotogrames clau per a la transformació i l'opacitat al llarg del temps.";
+"Stop Animating?" = "Voleu aturar l'animació?";
+"This removes its keyframes and keeps the current position as its transform." = "Això elimina els seus fotogrames clau i manté la posició actual com a transformació.";
+"Stop Animating" = "Atura l'animació";
+"Previous Keyframe" = "Fotograma clau anterior";
+"Add Keyframe" = "Afegeix un fotograma clau";
+"Remove Keyframe" = "Suprimeix el fotograma clau";
+"Next Keyframe" = "Fotograma clau següent";
+"Easing" = "Suavitzat";
+"Linear" = "Lineal";
+"Ease In" = "Entrada suau";
+"Ease Out" = "Sortida suau";
+"Ease In/Out" = "Entrada i sortida suaus";
+"Hold" = "Manté";
+"Delete Keyframe" = "Suprimeix el fotograma clau";

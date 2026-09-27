@@ -899,3 +899,21 @@
 "Scale" = "ขนาด";
 "Rotation" = "การหมุน";
 "Reset Transform" = "รีเซ็ตการแปลง";
+
+/* Keyframe animation (video editor) */
+"Animate" = "ทำให้เคลื่อนไหว";
+"Keyframe the transform and opacity over time." = "ตั้งคีย์เฟรมสำหรับการแปลงและความทึบตามช่วงเวลา";
+"Stop Animating?" = "หยุดการเคลื่อนไหวหรือไม่";
+"This removes its keyframes and keeps the current position as its transform." = "การดำเนินการนี้จะลบคีย์เฟรมและคงตำแหน่งปัจจุบันไว้เป็นการแปลง";
+"Stop Animating" = "หยุดการเคลื่อนไหว";
+"Previous Keyframe" = "คีย์เฟรมก่อนหน้า";
+"Add Keyframe" = "เพิ่มคีย์เฟรม";
+"Remove Keyframe" = "ลบคีย์เฟรม";
+"Next Keyframe" = "คีย์เฟรมถัดไป";
+"Easing" = "การไล่ระดับความเร็ว";
+"Linear" = "เชิงเส้น";
+"Ease In" = "ไล่ระดับเข้า";
+"Ease Out" = "ไล่ระดับออก";
+"Ease In/Out" = "ไล่ระดับเข้า/ออก";
+"Hold" = "คงค้าง";
+"Delete Keyframe" = "ลบคีย์เฟรม";
