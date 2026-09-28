@@ -96,9 +96,14 @@ final class SettingsPortabilityTests: XCTestCase {
         }
     }
 
-    func testTheSparkleKeyIsForcedThroughDespiteItsShape() {
-        XCTAssertTrue(SettingsPortability.isPortable("SUEnableAutomaticChecks"),
-                      "macshot owns this pref even though it isn't lowercase")
+    func testTheSparkleAutoUpdateKeyNeverTransfers() {
+        // Markclip Phase 1 (identity): Sparkle reads/writes this UserDefaults
+        // key directly, so letting it import would let an old macshot
+        // settings export silently re-enable automatic update checks against
+        // upstream macshot's appcast (Markclip must never self-update to
+        // upstream). It fails the lowercase shape rule and isn't force-included.
+        XCTAssertFalse(SettingsPortability.isPortable("SUEnableAutomaticChecks"),
+                       "the Sparkle auto-update pref must never transfer between installs")
     }
 
     // MARK: - Import validation

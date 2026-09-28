@@ -42,7 +42,13 @@ final class GoogleDriveUploader: NSObject, ASWebAuthenticationPresentationContex
     var userEmail: String? { defaults.string(forKey: "gdriveUserEmail") }
     private var folderName: String {
         let name = defaults.string(forKey: "gdriveFolderName")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return name.isEmpty ? "macshot" : name
+        // Markclip Phase 1 (identity, ROADMAP.md): the default folder name
+        // follows the app's display name. Existing uploads made under the
+        // old "macshot" default aren't moved — they stay exactly where they
+        // are in Drive — but a fresh default upload now creates/reuses a
+        // "Markclip" folder instead. Anyone who already set an explicit
+        // `gdriveFolderName` is unaffected either way.
+        return name.isEmpty ? BuildVariant.displayName : name
     }
 
     /// Start the OAuth2 sign-in flow using ASWebAuthenticationSession.

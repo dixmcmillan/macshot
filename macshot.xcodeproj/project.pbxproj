@@ -389,10 +389,10 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 3.5.2;
 				DEVELOPMENT_TEAM = ZPSG2DNYFC;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = macshot/Info.plist;
-				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Markclip;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -405,7 +405,7 @@
 					"-weak_framework",
 					ScreenCaptureKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.sw33tlie.macshot.macshot;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dixmcmillan.markclip;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -427,10 +427,10 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 3.5.2;
 				DEVELOPMENT_TEAM = "";
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = macshot/Info.plist;
-				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Markclip;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -443,7 +443,7 @@
 					"-weak_framework",
 					ScreenCaptureKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.sw33tlie.macshot.macshot;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dixmcmillan.markclip;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -478,7 +478,7 @@
 					"-weak_framework",
 					ScreenCaptureKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.sw33tlie.macshot.macshotTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dixmcmillan.markclip.macshotTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -512,7 +512,7 @@
 					"-weak_framework",
 					ScreenCaptureKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.sw33tlie.macshot.macshotTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dixmcmillan.markclip.macshotTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

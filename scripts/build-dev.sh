@@ -1,13 +1,13 @@
 #!/bin/zsh
-# Fork-only: build this checkout as "macshot Dev" with its own bundle ID so it
+# Fork-only: build this checkout as "Markclip" with its own bundle ID so it
 # can run beside an installed macshot (macshot quits itself when another copy
 # with the same ID is running). The huge build number and disabled automatic
-# checks keep Sparkle from "updating" it to the official release.
+# checks keep Sparkle from "updating" it to the official macshot release.
 # Usage: scripts/build-dev.sh [--open]
 set -euo pipefail
 REPO=${0:A:h:h}
-BUNDLE_ID=${MACSHOT_DEV_BUNDLE_ID:-com.dixon.macshot.dev}
-OUT="/Applications/macshot Dev.app"
+BUNDLE_ID=${MACSHOT_DEV_BUNDLE_ID:-com.dixmcmillan.markclip}
+OUT="/Applications/Markclip.app"
 
 cd "$REPO"
 xcodebuild -scheme macshot -configuration Debug -derivedDataPath "$REPO/build" \
@@ -18,19 +18,24 @@ pkill -f "$OUT/Contents/MacOS/" 2>/dev/null || true
 rm -rf "$OUT"
 cp -R "$REPO/build/Build/Products/Debug/macshot.app" "$OUT"
 plist="$OUT/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set :CFBundleName macshot Dev" "$plist"
-/usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string macshot Dev" "$plist" 2>/dev/null \
-  || /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName macshot Dev" "$plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleName Markclip" "$plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string Markclip" "$plist" 2>/dev/null \
+  || /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Markclip" "$plist"
 /usr/libexec/PlistBuddy -c "Add :SUEnableAutomaticChecks bool false" "$plist" 2>/dev/null \
   || /usr/libexec/PlistBuddy -c "Set :SUEnableAutomaticChecks false" "$plist"
 # Ad-hoc signatures change with every build, and macOS ties the Screen
 # Recording grant to the signature, so each rebuild would need re-approval.
 # A local self-signed identity keeps the designated requirement stable.
-IDENTITY=${MACSHOT_DEV_SIGNING_IDENTITY:-macshot Dev Local Signing}
-if security find-identity -p codesigning 2>/dev/null | grep -q "\"$IDENTITY\""; then
+# First identity found wins; "macshot Dev Local Signing" is the one created
+# before the rename, kept so existing Screen Recording grants stay valid.
+IDENTITY=""
+for candidate in ${MARKCLIP_SIGNING_IDENTITY:-} "Markclip Local Signing" "macshot Dev Local Signing"; do
+  if security find-identity -p codesigning 2>/dev/null | grep -q "\"$candidate\""; then IDENTITY=$candidate; break; fi
+done
+if [[ -n "$IDENTITY" ]]; then
   codesign --force --deep --sign "$IDENTITY" "$OUT" >/dev/null 2>&1
 else
-  echo "note: no \"$IDENTITY\" identity; signing ad hoc (Screen Recording must be re-granted after each build)"
+  echo "note: no local signing identity; signing ad hoc (Screen Recording must be re-granted after each build)"
   codesign --force --deep --sign - "$OUT" >/dev/null 2>&1
 fi
 echo "Built: $OUT ($(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist"))"

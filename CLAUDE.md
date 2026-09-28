@@ -7,9 +7,10 @@ Native macOS screenshot & annotation tool inspired by Flameshot. Built with Swif
 - **Language:** Swift 5.0
 - **UI:** AppKit (all windows created in code, storyboard is minimal — just app entry + main menu)
 - **Min Target:** macOS 12.3+ (Monterey)
-- **Bundle ID:** com.sw33tlie.macshot.macshot
-- **Sandbox:** Enabled (entitlements: network.client, files.user-selected.read-write, files.bookmarks.app-scope)
-- **LSUIElement:** YES (menu bar only app, no dock icon — switches to `.regular` when editor windows are open)
+- **Bundle ID:** com.dixmcmillan.markclip (this fork; upstream macshot is com.sw33tlie.macshot.macshot). `RecordingSessionStore.rootURL`, `ScreenshotHistory`, `LaunchCleanup` and `GoogleDriveUploader` all hardcode the literal folder name `com.sw33tlie.macshot` under Application Support rather than deriving it from `Bundle.main.bundleIdentifier` — don't "fix" that; it's what keeps existing recordings/projects/history found after this bundle ID change.
+- **Display name:** "Markclip" (`BuildVariant.displayName`, `INFOPLIST_KEY_CFBundleDisplayName`) — internal names (Xcode target/scheme, module, `macshot/` folder, file/type names) stay `macshot` so upstream fixes can still be cherry-picked. See ROADMAP.md "Identity".
+- **Sandbox:** Disabled in this fork (App Store distribution isn't a goal; disabling it keeps `~/Library/Application Support/…` a fixed, bundle-ID-independent path, which is what makes the bundle ID change above safe for existing recordings/projects). Upstream macshot keeps it enabled.
+- **LSUIElement:** NO in this fork — a regular Dock app that stays running with no windows open and reopens the Welcome window on Dock-icon click (`applicationShouldHandleReopen`). `AppDelegate.returnFocusIfNeeded()` no longer downgrades to `.accessory`. Upstream macshot is still menu-bar-only (LSUIElement YES).
 - **Permissions:** Screen Recording (Info.plist has Privacy - Screen Capture Usage Description)
 - **Xcode:** File system synchronized groups — just create .swift files in `macshot/` and Xcode picks them up automatically
 
@@ -305,7 +306,7 @@ Copy to clipboard, Save to file (PNG/JPEG/HEIC/WebP), Pin (floating always-on-to
 - **Color Opacity:** Adjustable per annotation via custom color picker
 - **Smooth Pencil Strokes:** Toggle in settings
 - **Zoom:** 0.1x–8x, scroll/pinch, pan, clickable label to edit percentage
-- **Sparkle Auto-Updates:** Automatic update checks via Sparkle framework
+- **Sparkle Auto-Updates (upstream macshot only):** this fork keeps the Sparkle framework linked (`SPUUpdaterDelegate` conformance) but has no feed URL, `SUEnableAutomaticChecks` false, and no "Check for Updates"/beta-channel UI — it must never update itself to an upstream macshot build. See ROADMAP.md "Identity".
 - **Permission Onboarding:** First-run guide for granting Screen Recording permission
 
 ## Coding Conventions
@@ -343,9 +344,9 @@ Copy to clipboard, Save to file (PNG/JPEG/HEIC/WebP), Pin (floating always-on-to
 - `autoreleasepool` for overlay teardown to prevent memory spikes
 - Extension files (`OverlayView+Feature.swift`) for self-contained feature code that accesses OverlayView state but is logically separate (recording overlays, scroll capture HUD, window snapping, popovers)
 - **Light/dark mode:** The toolbar and popovers always use a dark background regardless of system appearance. `ToolOptionsRowView` and `PopoverHelper` force `NSAppearance(named: .darkAqua)` so system controls render with light text. Never use system-adaptive colors (`.labelColor`, `.secondaryLabelColor`) for text in toolbar/popover contexts without verifying contrast against the dark background. Always test new toolbar UI elements in both light and dark system appearance.
-- **Focus management:** macshot is an `LSUIElement` (menu bar app) that temporarily shows windows. All focus return is handled by `AppDelegate.returnFocusIfNeeded()` — one centralized method. Rules:
+- **Focus management:** upstream macshot is an `LSUIElement` (menu bar app) that temporarily shows windows; this fork is a regular Dock app (`LSUIElement` NO — see ROADMAP.md "Identity") that stays `.regular` permanently. All focus return is handled by `AppDelegate.returnFocusIfNeeded()` — one centralized method. Rules:
   - `previousApp` is captured in `startCapture()` before the overlay steals focus. Cleared after single use.
-  - `returnFocusIfNeeded()` checks for visible titled windows, switches to `.accessory` policy, activates `previousApp`. When `previousApp` is nil it activates the frontmost non-macshot app instead. It deliberately does **not** call `NSApp.hide(nil)`: that can suspend the Carbon event loop and break global hotkeys.
+  - `returnFocusIfNeeded()` checks for visible titled windows and activates `previousApp`. When `previousApp` is nil it activates the frontmost non-macshot app instead. It no longer switches the activation policy to `.accessory` in this fork (that would hide the Dock icon on a regular app). It deliberately does **not** call `NSApp.hide(nil)`: that can suspend the Carbon event loop and break global hotkeys.
   - `dismissOverlays(refocusPreviousApp: true)` (default) calls `returnFocusIfNeeded()`. Pass `false` only when macshot creates floating panels immediately after (pin, upload toast, recording HUD).
   - **Pattern for pin/upload/OCR-window paths:** an overlay dismiss that creates a floating panel afterward should: (1) save `previousApp` locally, (2) `dismissOverlays(refocusPreviousApp: false)`, (3) create the panel, (4) manually `app.activate(options: .activateIgnoringOtherApps)` on the saved app. See `overlayDidRequestPin` and `overlayDidRequestUpload`. (This originally guarded against the `NSApp.hide(nil)` fallback, which no longer exists; the ordering still gives the panel a clean hand-off.)
   - Every window close (editor, video editor, OCR, preferences) calls `returnFocusIfNeeded()` — never inline `setActivationPolicy`/`activate` directly.
@@ -366,8 +367,7 @@ Copy to clipboard, Save to file (PNG/JPEG/HEIC/WebP), Pin (floating always-on-to
 - Open `macshot.xcodeproj` in Xcode
 - Build & Run (Cmd+R)
 - Grant Screen Recording permission when prompted
-- App appears as icon in menu bar (no dock icon)
-- Click menu bar icon → "Capture Screen" or use global hotkey (default: Cmd+Shift+X)
+- This fork launches to the Welcome window (regular Dock app). The menu bar icon is off by default (Settings > General) and, if enabled, no longer has screenshot capture actions by default — use File > Open Video…/Record Screen or the Welcome window. Upstream macshot instead appears only as a menu bar icon with "Capture Screen" and a global hotkey (default Cmd+Shift+X).
 
 ## Releasing
 

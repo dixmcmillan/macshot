@@ -107,11 +107,16 @@ enum SettingsPortability {
         return true
     }
 
-    /// macshot-owned settings whose names don't fit the lowercase shape rule (e.g. the Sparkle
-    /// pref, which macshot deliberately reuses). Explicitly allowed so they still export.
-    static let forcedIncludeKeys: Set<String> = [
-        "SUEnableAutomaticChecks",
-    ]
+    /// macshot-owned settings whose names don't fit the lowercase shape rule. Explicitly
+    /// allowed so they still export.
+    ///
+    /// `SUEnableAutomaticChecks` is deliberately *not* here (Markclip Phase 1 identity):
+    /// Sparkle reads/writes that raw UserDefaults key directly, so force-including it would
+    /// let an imported settings export re-enable automatic update checks against upstream
+    /// macshot's appcast — see ROADMAP.md. Its `SCREAMING`-shaped name already fails
+    /// `looksAppAuthored`, so leaving it out of this allow-list is enough to keep it
+    /// non-portable in both directions.
+    static let forcedIncludeKeys: Set<String> = []
 
     /// Whether a key is safe to export/import.
     static func isPortable(_ key: String) -> Bool {

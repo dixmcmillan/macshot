@@ -313,4 +313,58 @@ final class LocalizationTests: XCTestCase {
         XCTAssertNil(suspects["video"])
         XCTAssertEqual(suspects["camara"], 1)
     }
+
+    // MARK: - Runtime brand substitution (Markclip)
+
+    /// The shipped translations still say "macshot" — that's the upstream
+    /// brand the fork's ~35 English keys (and their 40 translations) were
+    /// written against. `LanguageManager.applyBrand` substitutes it at
+    /// lookup time instead of hand-editing every locale file. These tests
+    /// exercise that substitution directly against the real `.strings`
+    /// tables, so a future edit that reintroduces "macshot"/"MacShot" text
+    /// a user can see would either get rebranded correctly or get caught here.
+
+    func testApplyBrandRewritesTheCommonCases() {
+        XCTAssertEqual(LanguageManager.applyBrand("Quit macshot"), "Quit Markclip")
+        XCTAssertEqual(LanguageManager.applyBrand("macshot Preferences"), "Markclip Preferences")
+        XCTAssertEqual(LanguageManager.applyBrand("Enable macshot:// URL scheme"),
+                       "Enable markclip:// URL scheme")
+        XCTAssertEqual(LanguageManager.applyBrand("Trigger macshot from Raycast"),
+                       "Trigger Markclip from Raycast")
+        XCTAssertEqual(LanguageManager.applyBrand("MacShot's update server"), "Markclip's update server")
+        XCTAssertEqual(LanguageManager.applyBrand("No brand here"), "No brand here")
+    }
+
+    func testApplyBrandNeverLeavesTheUpstreamNameBehind() throws {
+        var leaks: [String] = []
+        for (locale, table) in Self.tables {
+            for (key, value) in table {
+                let rebranded = LanguageManager.applyBrand(value)
+                if rebranded.localizedCaseInsensitiveContains("macshot") {
+                    leaks.append("\(locale) \"\(key)\": \"\(rebranded)\"")
+                }
+            }
+        }
+        XCTAssertTrue(leaks.isEmpty, "runtime brand substitution left the upstream name visible:\n"
+                      + leaks.prefix(10).joined(separator: "\n"))
+    }
+
+    func testApplyBrandPreservesFormatPlaceholders() throws {
+        // Substitution must not disturb printf-style placeholders — the
+        // format-consistency tests above assume the pre-substitution text.
+        let base = try XCTUnwrap(Self.tables[Self.baseLocale])
+        for (key, value) in base where !Self.specifiers(in: value).isEmpty {
+            XCTAssertEqual(Self.specifiers(in: LanguageManager.applyBrand(value)), Self.specifiers(in: value),
+                           "brand substitution changed the placeholders of \"\(key)\"")
+        }
+    }
+
+    func testLDoesTheSubstitutionEndToEnd() {
+        // `L(_:)` is the shorthand every call site uses; confirm the
+        // substitution is actually wired into it, not just into the helper.
+        // Don't assume the resolved runtime language is English — just that
+        // whichever translation comes back has already been rebranded.
+        XCTAssertFalse(L("Quit macshot").localizedCaseInsensitiveContains("macshot"),
+                       "L(\"Quit macshot\") should return a rebranded string, got: \(L("Quit macshot"))")
+    }
 }

@@ -197,11 +197,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     private var updaterController: SPUStandardUpdaterController!
     private var overlayControllers: [OverlayWindowController] = []
     private var settingsController: SettingsWindowController?
+    private var welcomeController: WelcomeWindowController?
     private var onboardingController: PermissionOnboardingController?
     private var pinControllers: [PinWindowController] = []
     private var thumbnailControllers: [FloatingThumbnailController] = []
     private var ocrController: OCRResultController?
     private var historyMenu: NSMenu?
+    private var openRecentMenu: NSMenu?
     private var historyOverlayController: HistoryOverlayController?
     private var isCapturing = false
     private var delayCountdownWindow: NSWindow?
@@ -272,6 +274,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             return
         }
 
+        // Markclip Phase 1 (identity, ROADMAP.md): recover recordings/history
+        // left behind in the old sandbox container before anything below
+        // touches Application Support (ScreenshotHistory.shared is
+        // force-initialized later in this method). See
+        // SandboxContainerMigration's doc comment for why this is needed.
+        SandboxContainerMigration.runIfNeeded()
+
+        // Markclip Phase 1 (identity, ROADMAP.md): the screenshot capture
+        // flow is retired from the UI by default, so the menu bar icon that
+        // exposes it is opt-in (Settings > General), off on a fresh install.
+        // `register(defaults:)` only supplies a fallback for reads that find
+        // no stored value — an explicit choice (including one made before
+        // this change, on the old bundle ID's now-unrelated defaults domain)
+        // is never overridden.
+        UserDefaults.standard.register(defaults: ["hideMenuBarIcon": true])
+
         // Clear image-effect state written by a pre-June-2026 build, which
         // otherwise leaves Vivid silently applied to every capture (#345).
         EffectsMigration.runIfNeeded()
@@ -282,11 +300,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             self?.showFailureToast(message)
         }
 
-        // Disable App Nap. macshot is LSUIElement with no visible windows
-        // when idle, so macOS can add wake-up latency to global hotkey
-        // captures. The "allowing idle system sleep" variant keeps the
-        // responsiveness hint without creating a PreventUserIdleSystemSleep
-        // assertion that blocks normal sleep.
+        // Disable App Nap. The app is frequently idle with no key window
+        // (menu bar only, or a regular window in the background), so macOS
+        // can add wake-up latency to global hotkey captures/recordings. The
+        // "allowing idle system sleep" variant keeps the responsiveness hint
+        // without creating a PreventUserIdleSystemSleep assertion that
+        // blocks normal sleep.
         appNapAssertion = ProcessInfo.processInfo.beginActivity(
             options: [.userInitiatedAllowingIdleSystemSleep],
             reason: "Global hotkey responsiveness")
@@ -319,6 +338,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         // via explicit user action ("Check for Updates..." / Install),
         // so an automatic update can't be mistaken for a silent crash.
         updaterController.updater.automaticallyDownloadsUpdates = false
+        // Markclip Phase 1 (identity, ROADMAP.md): Sparkle must never update
+        // this fork to an upstream macshot build. There's no feed URL
+        // configured (removed from Info.plist) and no UI left that can
+        // trigger a manual check, but this also belt-and-suspenders disables
+        // the automatic timer in code, since Sparkle persists this as a
+        // UserDefaults value that could otherwise outlive an Info.plist change.
+        updaterController.updater.automaticallyChecksForUpdates = false
         setupMainMenu()
         setupStatusBar()
         DistributedNotificationCenter.default().addObserver(
@@ -386,6 +412,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             let urls = self.pendingOpenURLs
             self.pendingOpenURLs.removeAll()
             self.handleOpenURLs(urls)
+            // Markclip Phase 1 identity (ROADMAP.md): show the Welcome
+            // window at launch, unless a file/URL-scheme request is already
+            // opening something (cold launch with a file skips Welcome).
+            if urls.isEmpty {
+                self.openWelcome()
+            }
         }
     }
 
@@ -498,15 +530,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        // Re-launching macshot while it's running: show the menu bar icon
-        if UserDefaults.standard.bool(forKey: "hideMenuBarIcon") {
-            UserDefaults.standard.set(false, forKey: "hideMenuBarIcon")
-            setMenuBarIconVisible(true)
-        }
-        // Only open settings if no windows are visible (e.g. pure menu-bar state).
-        // If editor/video editor is already open, just bring the app to the front.
+        // Dock icon clicked (or the app re-activated) with no visible
+        // windows: show the Welcome window (Markclip Phase 1 — ROADMAP.md).
+        // If an editor/video editor/settings window is already open, just
+        // let AppKit bring the app to the front.
         if !flag {
-            openSettings()
+            openWelcome()
         }
         return false
     }
@@ -675,19 +704,48 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         mainMenu.addItem(appMenuItem)
 
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About macshot", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: "About \(BuildVariant.displayName)", action: #selector(showAboutPanel), keyEquivalent: "")
+        aboutItem.target = self
+        appMenu.addItem(aboutItem)
         appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(withTitle: "Quit macshot", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit \(BuildVariant.displayName)", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
 
         let fileMenuItem = NSMenuItem()
         mainMenu.addItem(fileMenuItem)
 
         let fileMenu = NSMenu(title: "File")
+
+        let openVideoItem = NSMenuItem(title: L("Open Video..."), action: #selector(openVideoFromMenu), keyEquivalent: "o")
+        openVideoItem.target = self
+        fileMenu.addItem(openVideoItem)
+
+        let openRecentItem = NSMenuItem(title: "Open Recent", action: nil, keyEquivalent: "")
+        let openRecentSubmenu = NSMenu()
+        openRecentSubmenu.delegate = self
+        openRecentItem.submenu = openRecentSubmenu
+        self.openRecentMenu = openRecentSubmenu
+        fileMenu.addItem(openRecentItem)
+
+        fileMenu.addItem(NSMenuItem.separator())
+
+        let recordScreenItem = NSMenuItem(title: L("Record Screen"), action: #selector(recordFullScreen), keyEquivalent: "")
+        recordScreenItem.target = self
+        fileMenu.addItem(recordScreenItem)
+
+        fileMenu.addItem(NSMenuItem.separator())
+
         // Standard Close Window (Cmd+W) — routes to NSWindow.performClose(_:) via the
         // responder chain, so it closes whichever window is key (editor, settings, etc.)
         // without any window-specific handling.
         fileMenu.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+
+        fileMenu.addItem(NSMenuItem.separator())
+
+        let exportItem = NSMenuItem(title: L("Export") + "…", action: #selector(exportFrontmostVideo), keyEquivalent: "e")
+        exportItem.target = self
+        fileMenu.addItem(exportItem)
+
         fileMenuItem.submenu = fileMenu
 
         let editMenuItem = NSMenuItem()
@@ -710,6 +768,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         editMenuItem.submenu = editMenu
 
         NSApp.mainMenu = mainMenu
+    }
+
+    /// Custom About panel (Markclip Phase 1 — identity, ROADMAP.md): adds a
+    /// clickable credit to upstream macshot, since this fork stays GPL-3.0
+    /// and credits it. Built with `orderFrontStandardAboutPanel(options:)`
+    /// rather than a `Credits.rtf` bundle resource, so the link is guaranteed
+    /// to render regardless of asset-catalog/resource bundling.
+    @objc private func showAboutPanel() {
+        let credits = NSMutableAttributedString(
+            string: "Based on macshot by sw33tLie, GPL-3.0",
+            attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.secondaryLabelColor]
+        )
+        if let range = credits.string.range(of: "macshot") {
+            credits.addAttribute(.link, value: URL(string: "https://github.com/sw33tLie/macshot") as Any,
+                                  range: NSRange(range, in: credits.string))
+        }
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        credits.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: credits.length))
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
     }
 
     // MARK: - Status Bar
@@ -747,7 +825,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         let symbolName = UserDefaults.standard.string(forKey: Self.statusBarIconSymbolNameKey) ?? ""
 
         if mode == "symbol", !symbolName.isEmpty,
-           let symbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: "macshot") {
+           let symbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Markclip") {
             symbol.isTemplate = true
             symbol.size = NSSize(width: 22, height: 22)
             button.image = symbol
@@ -759,7 +837,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             button.title = ""
         } else {
             button.image = nil
-            button.title = "macshot"
+            button.title = "Markclip"
         }
     }
 
@@ -814,9 +892,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
-        for itemID in CaptureMenuItemID.orderedItems() {
-            menu.addItem(makeCaptureMenuItem(itemID))
-        }
+        // Markclip Phase 1 (identity, ROADMAP.md): the screenshot capture
+        // actions (Capture Area/Screen/OCR/Quick Capture/Last Area/Scroll)
+        // are retired from the default menu bar menu — screen recording is
+        // the primary flow now. `CaptureMenuItemID`/`makeCaptureMenuItem`
+        // and the capture code itself are untouched for a future cleanup;
+        // this menu just no longer surfaces them. The delay submenu below
+        // stays — it also controls the recording start delay.
 
         // Capture Delay submenu
         let delayItem = NSMenuItem(title: L("Capture Delay"), action: nil, keyEquivalent: "")
@@ -904,12 +986,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         prefsItem.image = NSImage(systemSymbolName: "gear", accessibilityDescription: nil)
         menu.addItem(prefsItem)
 
-        let updateItem = NSMenuItem(title: L("Check for Updates..."), action: #selector(checkForUpdates), keyEquivalent: "")
-        updateItem.target = self
-        updateItem.image = NSImage(systemSymbolName: "arrow.triangle.2.circlepath", accessibilityDescription: nil)
-        menu.addItem(updateItem)
-
-        menu.addItem(NSMenuItem.separator())
+        // Markclip Phase 1 (identity, ROADMAP.md): no "Check for Updates…" —
+        // Sparkle must never offer to update this fork to an upstream
+        // macshot build. Automatic checks are off (Info.plist) and this was
+        // the only in-app way to trigger a manual check.
 
         let quitItem = NSMenuItem(title: L("Quit macshot"), action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
@@ -1041,14 +1121,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             // and selection border are non-titled panels that would be killed.
             if self?.recordingEngine != nil { return }
             let hasVisibleWindows = NSApp.windows.contains { $0.isVisible && $0.styleMask.contains(.titled) }
-            // Windows we hid for the screenshot count as "visible" for
-            // activation-policy purposes — they're coming back as soon as
-            // the previous app regains focus, so we mustn't downgrade.
-            let hasStashedWindows = !(self?.stashedBackgroundWindows.isEmpty ?? true)
             guard !hasVisibleWindows else { return }
-            if !hasStashedWindows {
-                NSApp.setActivationPolicy(.accessory)
-            }
+            // Markclip Phase 1 (identity, ROADMAP.md): the app is a regular
+            // Dock app (LSUIElement NO) that keeps running with no windows
+            // open, rather than the old menu-bar-only tool that dropped to
+            // `.accessory` (no Dock icon) whenever its last titled window
+            // closed. Only focus is handed back here now — the activation
+            // policy stays `.regular` always so the Dock icon, Cmd-Tab entry
+            // and `applicationShouldHandleReopen` keep working.
             if let prev = appToActivate, !prev.isTerminated,
                prev.bundleIdentifier != Bundle.main.bundleIdentifier {
                 self?.captureTimingTrace?.mark("activate previous app")
@@ -1134,7 +1214,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     }
 
     /// Region-capture → OCR → translate → draw the translation in place over the
-    /// original text on the screenshot (macshot://ocr-translate). `target` nil
+    /// original text on the screenshot (markclip://ocr-translate). `target` nil
     /// uses the saved default language.
     private func beginCaptureTranslate(target: String?, fromMenu: Bool) {
         guard canStartCapture else { return }
@@ -1202,7 +1282,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         startCapture(fromMenu: fromMenu)
     }
 
-    @objc private func recordFullScreen() {
+    @objc func recordFullScreen() {
         beginRecordFullScreen(fromMenu: true)
     }
 
@@ -1665,11 +1745,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
 
 
     @objc private func handleShowAndOpenPrefs() {
-        if UserDefaults.standard.bool(forKey: "hideMenuBarIcon") {
-            UserDefaults.standard.set(false, forKey: "hideMenuBarIcon")
-            setMenuBarIconVisible(true)
+        // A second launch attempt (Finder double-click, `open -a Markclip`)
+        // while already running forwards here instead of starting a second
+        // process. Markclip Phase 1 (identity): show the Welcome window,
+        // same as clicking the Dock icon with no windows open — the menu bar
+        // icon is an independent, opt-in preference now, not the only way
+        // back into the app, so it's no longer force-enabled here.
+        NSApp.activate(ignoringOtherApps: true)
+        if !NSApp.windows.contains(where: { $0.isVisible && $0.styleMask.contains(.titled) }) {
+            openWelcome()
         }
-        openSettings()
     }
 
     @objc private func keyboardInputSourceDidChange() {
@@ -1720,9 +1805,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         }
     }
 
-    /// Path to the rolling timing log inside the sandbox container.
-    /// Real path on disk:
-    ///   ~/Library/Containers/com.sw33tlie.macshot.macshot/Data/Library/Application Support/macshot/timing.log
+    /// Path to the rolling timing log.
+    /// Real path on disk (unsandboxed):
+    ///   ~/Library/Application Support/macshot/timing.log
     static let timingLogURL: URL = {
         let fm = FileManager.default
         let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -2326,7 +2411,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
 
     /// Open a history entry in the editor by its id, restoring editable annotations when
     /// available (falls back to the flattened image, like the history overlay does). Lets
-    /// external tools re-open a specific capture for editing — `macshot://edit?id=<id>` —
+    /// external tools re-open a specific capture for editing — `markclip://edit?id=<id>` —
     /// without flattening it, which `open?file=` cannot do.
     private func openHistoryEntryInEditor(id: String) {
         guard let entry = ScreenshotHistory.shared.entries.first(where: { $0.id == id }) else { return }
@@ -2363,7 +2448,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         openVideoWithPanel()
     }
 
-    private func openVideoWithPanel() {
+    func openVideoWithPanel() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
@@ -2380,9 +2465,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         }
     }
 
-    private func openVideoFile(url: URL) {
+    func openVideoFile(url: URL) {
+        // Recent videos/projects (Welcome window, File > Open Recent) —
+        // Markclip Phase 1 identity, see ROADMAP.md.
+        NSDocumentController.shared.noteNewRecentDocumentURL(url)
         // Never let the editor delete the user's source file on close.
         VideoEditorWindowController.open(url: url, deleteOnClose: false)
+    }
+
+    /// File > Export… routes to the frontmost video editor window's own
+    /// export panel. A no-op with no editor open.
+    @objc private func exportFrontmostVideo() {
+        guard let controller = VideoEditorWindowController.frontmostController,
+              let contentView = controller.window?.contentView else { return }
+        controller.showExportPanel(contentView)
     }
 
     /// Handle files opened via Finder "Open With", drag-to-dock, or command line.
@@ -2398,7 +2494,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "tiff", "tif", "bmp", "gif", "heic", "heif", "webp", "icns"]
         let videoExtensions: Set<String> = ["mp4", "mov", "m4v"]
         for url in urls {
-            if url.scheme == "macshot" {
+            if url.scheme == "markclip" {
                 let urlSchemeEnabled = UserDefaults.standard.object(forKey: "urlSchemeEnabled") as? Bool ?? true
                 guard urlSchemeEnabled else { continue }
                 if Self.screenCaptureURLActions.contains(url.host ?? "") {
@@ -2427,8 +2523,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         }
     }
 
-    /// Handle macshot:// URL scheme actions from external tools (Raycast, Alfred, etc.).
-    /// Usage: `open macshot://capture`, `open macshot://ocr`, etc.
+    /// Handle markclip:// URL scheme actions from external tools (Raycast, Alfred, etc.).
+    /// Usage: `open markclip://capture`, `open markclip://ocr`, etc.
     private static let screenCaptureURLActions: Set<String> = [
         "capture", "capture-fullscreen", "capture-last", "quick-capture",
         "ocr", "ocr-translate", "record", "record-fullscreen", "scroll-capture",
@@ -2484,6 +2580,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         settingsController?.showWindow()
     }
 
+    // MARK: - Welcome
+
+    /// Shown at launch when nothing else is opening, and whenever the Dock
+    /// icon is clicked (or the app re-activated) with no visible windows.
+    /// Markclip Phase 1 identity — see ROADMAP.md.
+    func openWelcome() {
+        if welcomeController == nil {
+            let controller = WelcomeWindowController()
+            controller.onOpenVideo = { [weak self] in self?.openVideoWithPanel() }
+            controller.onRecordScreen = { [weak self] in self?.recordFullScreen() }
+            controller.onOpenURL = { [weak self] url in self?.openVideoFile(url: url) }
+            welcomeController = controller
+        }
+        welcomeController?.show()
+    }
+
     // MARK: - Quit
 
     @objc private func checkForUpdates() {
@@ -2498,7 +2610,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     // MARK: - SPUUpdaterDelegate
 
     func allowedChannels(for updater: SPUUpdater) -> Set<String> {
-        UserDefaults.standard.bool(forKey: "betaUpdatesEnabled") ? ["beta"] : []
+        // Markclip Phase 1 (identity): the beta-channel setting is removed
+        // from the UI along with the rest of the update-check surface — see
+        // ROADMAP.md. No channel is ever opted into.
+        []
     }
 }
 
@@ -3449,6 +3564,10 @@ extension AppDelegate: NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        if menu === openRecentMenu {
+            rebuildOpenRecentMenu(menu)
+            return
+        }
         // Only rebuild the history submenu, not the main status bar menu
         guard menu === historyMenu else { return }
 
@@ -3477,6 +3596,42 @@ extension AppDelegate: NSMenuDelegate {
         clearItem.target = self
         clearItem.tag = 9000
         menu.addItem(clearItem)
+    }
+
+    /// File > Open Recent — rebuilt on demand from `NSDocumentController`'s
+    /// recent-documents list, filtered to files that still exist.
+    private func rebuildOpenRecentMenu(_ menu: NSMenu) {
+        menu.removeAllItems()
+        let urls = NSDocumentController.shared.recentDocumentURLs.filter {
+            FileManager.default.fileExists(atPath: $0.path)
+        }
+        if urls.isEmpty {
+            let emptyItem = NSMenuItem(title: "No Recent Items", action: nil, keyEquivalent: "")
+            emptyItem.isEnabled = false
+            menu.addItem(emptyItem)
+            return
+        }
+        for (i, url) in urls.enumerated() {
+            let item = NSMenuItem(title: url.lastPathComponent, action: #selector(openRecentDocument(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = i
+            item.representedObject = url
+            item.image = NSWorkspace.shared.icon(forFile: url.path)
+            menu.addItem(item)
+        }
+        menu.addItem(NSMenuItem.separator())
+        let clearItem = NSMenuItem(title: "Clear Menu", action: #selector(clearOpenRecentMenu), keyEquivalent: "")
+        clearItem.target = self
+        menu.addItem(clearItem)
+    }
+
+    @objc private func openRecentDocument(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL else { return }
+        openVideoFile(url: url)
+    }
+
+    @objc private func clearOpenRecentMenu() {
+        NSDocumentController.shared.clearRecentDocuments(nil)
     }
 
     @objc private func copyHistoryEntry(_ sender: NSMenuItem) {

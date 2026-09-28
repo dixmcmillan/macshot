@@ -1,56 +1,74 @@
-# macshot
+# Markclip
 
 <p align="center">
-  <img src="assets/logo.svg" alt="macshot logo" width="200"/>
+  <img src="assets/logo.svg" alt="Markclip logo" width="200"/>
 </p>
 
 <p align="center">
-  <b>The most feature-rich open-source screenshot tool on macOS.</b><br>
+  <b>A personal video editor for marking up and annotating training videos.</b><br>
   <br>
-  19+ annotation tools, screen recording with a full video editor, OCR + translation,<br>
-  auto-redact PII, scroll capture, beautify — all native, all free.
+  Pause-and-annotate with a full drawing toolkit, animated entrances/exits, overlay clips,<br>
+  keyframed motion, and screen recording — all native, all local.
 </p>
 
 <p align="center">
-  <a href="https://github.com/sw33tLie/macshot/releases/latest">Download</a> · <a href="https://github.com/sw33tLie/macshot/blob/main/CHANGELOG.md">Changelog</a> · <a href="https://github.com/sw33tLie/macshot/blob/main/PRIVACY.md">Privacy</a> · <a href="https://github.com/sw33tLie/macshot/blob/main/SECURITY.md">Security</a>
+  <img src="assets/preview.png" alt="Markclip annotation tools" width="700"/>
 </p>
 
 <p align="center">
-  <img src="assets/preview.png" alt="macshot demo" width="700"/>
-</p>
-
-<p align="center">
-  <img src="assets/preview-editor.png" alt="macshot video editor — timeline with cut, speed, freeze, zoom and censor effects" width="700"/>
+  <img src="assets/preview-editor.png" alt="Markclip video editor — timeline with cut, speed, freeze, zoom and censor effects" width="700"/>
 </p>
 
 ---
 
-### Why macshot?
+### About this fork
 
-- **Capture & annotate in one flow** — select a region, draw arrows/text/shapes/blur, copy to clipboard. One hotkey, zero friction.
-- **Screen recording with built-in editor** — record any area or full screen as MP4/GIF with system audio + microphone. Audio merge dialog with per-track volume control. Trim and export without leaving the app.
-- **Scroll capture** — select a region and scroll. macshot stitches it into one seamless tall (or wide) image automatically.
-- **Upload anywhere** — one-click upload to Google Drive, imgbb, or any S3-compatible service (Cloudflare R2, AWS S3, MinIO, etc.). Link copied to clipboard instantly.
-- **Lightweight & native** — lives in your menu bar. Built with Swift and AppKit, not a web browser in disguise.
-- **40 languages** — English, 中文, 日本語, 한국어, Deutsch, Français, Español, Italiano, Português, العربية, हिन्दी, and 29 more. Auto-detects your system language.
+Markclip is an **unofficial, personal fork** of [sw33tLie/macshot](https://github.com/sw33tLie/macshot),
+started from macshot's Studio video editor and turned into its own app: a lightweight, personal
+video editor for marking up training videos — a "mini Premiere/Resolve" tailored to one workflow.
+It is not affiliated with or endorsed by the macshot project, and it isn't distributed anywhere —
+no Homebrew cask, no GitHub Releases — it's built and run locally from this checkout. See
+[ROADMAP.md](ROADMAP.md) for the direction and what's next.
+
+Licensed like the original under the GNU GPL v3 — see [License](#license) below.
+
+### Why Markclip
+
+- **Video editing first** — screen recording stays, for recording your own training videos, but
+  the screenshot capture flow (still fully featured below) is being hidden and retired over time.
+- **Pause-and-annotate** — draw with the full screenshot toolkit (arrows, shapes, text, numbers,
+  stamps, highlighter) over the current video frame; the drawing becomes a timed clip that follows
+  crop and zoom, with an optional freeze-frame hold.
+- **Animated entrances/exits** — draw-on for lines, arrows, freehand and shape outlines, plus pop,
+  slide, wipe and fade, with per-shape stagger.
+- **Overlay clips** — ProRes 4444 / HEVC-with-alpha motion graphics (e.g. exported from Premiere
+  or After Effects) and still images composited over the video.
+- **Move, scale, rotate, keyframe** — drawings and overlays can be moved, scaled and rotated
+  directly on the preview, with keyframed position, scale, rotation and opacity, and easing.
 
 ---
 
-## Install
+## Building
 
-**Homebrew:**
+There's no public download for Markclip — it's a personal fork with no Homebrew cask or GitHub
+Release. Build and install it locally instead:
+
 ```bash
-brew install --cask macshot
+scripts/build-dev.sh --open
 ```
 
-**Manual:** Download the latest `.dmg` from [Releases](https://github.com/sw33tLie/macshot/releases), open it, drag to `/Applications`.
+This builds the checkout with Xcode and needs no App Store account or paid developer signing. It
+installs to `/Applications/Markclip.app` (and opens it, with `--open`), using a stable local
+code-signing identity so the Screen Recording permission grant survives rebuilds, and disables
+Sparkle's automatic update checks so the dev build never tries to "update" itself to an official
+macshot release.
 
 ---
 
 ## Quick Start
 
-1. Launch macshot — it appears in your menu bar
-2. Press `Cmd+Shift+X` to capture
+1. Launch Markclip — it appears in your menu bar
+2. Press `Cmd+Shift+X` to capture, or open the video editor to mark up a recording
 3. Drag to select, annotate with the toolbar, press `Cmd+C` to copy
 4. Press `Esc` to cancel
 
@@ -192,15 +210,16 @@ brew install --cask macshot
 
 ## Permissions
 
-macshot requires **Screen Recording** permission. macOS will prompt you on first capture.
+Markclip requires **Screen Recording** permission. macOS will prompt you on first capture.
 
 ---
 
 ## Donations
 
-Thanks for thinking about it, but macshot doesn't take donations. I make this in my free time and I'm happy to keep it that way, so there's no "buy me a coffee" or sponsorship link.
-
-If you'd like to help out, starring the repo, reporting bugs, or contributing is more than enough. Thank you! 🙏
+This is a personal fork built for one person's own use — there's no donation or sponsorship link
+here. If you find the underlying app useful, consider supporting [macshot](https://github.com/sw33tLie/macshot)
+upstream instead, where sw33tLie does the same: no donations taken, just starring the repo,
+reporting bugs, or contributing.
 
 ---
 
@@ -210,4 +229,4 @@ macOS 12.3 (Monterey) or later.
 
 ## License
 
-[GPLv3](LICENSE)
+[GPLv3](LICENSE) — based on [macshot](https://github.com/sw33tLie/macshot) by sw33tLie, GPL-3.0.

@@ -94,7 +94,27 @@ final class LanguageManager {
     }
 
     func localizedString(_ key: String) -> String {
-        bundle.localizedString(forKey: key, value: nil, table: nil)
+        Self.applyBrand(bundle.localizedString(forKey: key, value: nil, table: nil))
+    }
+
+    /// Every one of the 40 shipped locales still says "macshot" (and a few
+    /// "MacShot") in their translated strings — that's the upstream brand
+    /// name the translations were written against. Rather than hand-editing
+    /// ~35 keys across 40 `.strings` files (and re-doing it every time a
+    /// translation is refreshed), the app-facing brand name is substituted
+    /// once here, at lookup time, for every locale at once. `.strings` file
+    /// *comments* aren't part of what `NSBundle` returns, so this only ever
+    /// touches text a user actually sees.
+    ///
+    /// Order matters: the URL-scheme case ("macshot://") is replaced first so
+    /// it becomes the lowercase "markclip://" scheme name rather than picking
+    /// up the capitalized brand replacement below.
+    static func applyBrand(_ string: String) -> String {
+        guard string.contains("macshot") || string.contains("MacShot") else { return string }
+        return string
+            .replacingOccurrences(of: "macshot://", with: "markclip://")
+            .replacingOccurrences(of: "MacShot", with: "Markclip")
+            .replacingOccurrences(of: "macshot", with: "Markclip")
     }
 
     private func reload() {

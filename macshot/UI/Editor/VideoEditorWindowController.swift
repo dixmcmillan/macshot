@@ -10,6 +10,12 @@ final class VideoEditorWindowController: NSWindowController, NSWindowDelegate {
     private static var activeControllers: [VideoEditorWindowController] = []
     private var preparationJob: MediaExportCoordinator.Job?
 
+    /// The editor window AppKit considers key, or the most recently opened
+    /// one otherwise. Used by File > Export… to reach "the" open editor.
+    static var frontmostController: VideoEditorWindowController? {
+        activeControllers.first { $0.window?.isKeyWindow == true } ?? activeControllers.last
+    }
+
     private(set) var editorDocument: VideoEditorDocument!
     private(set) var playback: VideoEditorPlayback!
     var exporter: VideoEditorExporter!

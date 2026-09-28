@@ -78,15 +78,20 @@ class HotkeyManager {
             }
         }
 
+        // Markclip retires the screenshot capture flow from default behavior
+        // (Phase 1 identity — see ROADMAP.md): screenshot-only slots ship with
+        // no default binding so a fresh install doesn't grab Cmd+Shift+X/F/T/S
+        // for a flow that's now opt-in. Screen recording (`recordArea`) keeps
+        // its default. Users can still bind any slot manually in Settings.
         var defaultKeyCode: UInt32 {
             switch self {
-            case .captureArea: return UInt32(kVK_ANSI_X)
-            case .captureFullScreen: return UInt32(kVK_ANSI_F)
+            case .captureArea: return 0        // no default hotkey (screenshot flow retired)
+            case .captureFullScreen: return 0  // no default hotkey (screenshot flow retired)
             case .recordArea: return UInt32(kVK_ANSI_R)
             case .recordScreen: return 0
-            case .historyOverlay: return UInt32(kVK_ANSI_H)
-            case .captureOCR: return UInt32(kVK_ANSI_T)
-            case .quickCapture: return UInt32(kVK_ANSI_S)
+            case .historyOverlay: return 0     // no default hotkey (screenshot flow retired)
+            case .captureOCR: return 0         // no default hotkey (screenshot flow retired)
+            case .quickCapture: return 0       // no default hotkey (screenshot flow retired)
             case .scrollCapture: return 0
             case .openFromClipboard: return 0  // no default hotkey
             case .captureLastArea: return 0    // no default hotkey
@@ -97,8 +102,8 @@ class HotkeyManager {
 
         var defaultModifiers: UInt32 {
             switch self {
-            case .recordScreen, .scrollCapture, .openFromClipboard, .captureLastArea, .pinFromClipboard, .clearHistory: return 0
-            default: return UInt32(cmdKey | shiftKey)
+            case .recordArea: return UInt32(cmdKey | shiftKey)
+            default: return 0
             }
         }
     }

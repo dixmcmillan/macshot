@@ -95,8 +95,6 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSWindowD
     private var filenameTemplatePreview: NSTextField!
     private var recordingFilenameTemplateField: NSTextField!
     private var recordingFilenameTemplatePreview: NSTextField!
-    private var autoUpdateCheckbox: NSButton!
-    private var betaUpdateCheckbox: NSButton!
     private var accentColorWell: NSColorWell!
     private var iconColorWell: NSColorWell!
     private var bgColorWell: NSColorWell!
@@ -487,6 +485,9 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSWindowD
         stack.addArrangedSubview(indented(iconNote))
         stack.setCustomSpacing(6, after: stack.arrangedSubviews.last!)
 
+        // Key stays "macshot://" — it's an L() lookup key, not display text.
+        // `LanguageManager.applyBrand` rewrites the *returned* string's
+        // "macshot://" to "markclip://" (see Services/LanguageManager.swift).
         let urlSchemeCheckbox = NSButton(checkboxWithTitle: L("Enable macshot:// URL scheme"), target: self, action: #selector(urlSchemeChanged(_:)))
         urlSchemeCheckbox.state = (UserDefaults.standard.object(forKey: "urlSchemeEnabled") as? Bool ?? true) ? .on : .off
 
@@ -507,15 +508,14 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSWindowD
         urlSchemeRow.spacing = 4
         urlSchemeRow.alignment = .centerY
         stack.addArrangedSubview(indented(urlSchemeRow))
-        stack.setCustomSpacing(6, after: stack.arrangedSubviews.last!)
-
-        autoUpdateCheckbox = NSButton(checkboxWithTitle: L("Check for updates automatically"), target: self, action: #selector(autoUpdateChanged(_:)))
-        stack.addArrangedSubview(indented(autoUpdateCheckbox))
-        stack.setCustomSpacing(4, after: stack.arrangedSubviews.last!)
-
-        betaUpdateCheckbox = NSButton(checkboxWithTitle: L("Check for beta updates"), target: self, action: #selector(betaUpdateChanged(_:)))
-        stack.addArrangedSubview(indented(betaUpdateCheckbox))
         stack.setCustomSpacing(20, after: stack.arrangedSubviews.last!)
+
+        // Markclip Phase 1 (identity): Sparkle must never offer to update this
+        // fork to an upstream macshot build, so the update-check UI is removed
+        // rather than just defaulted off — see ROADMAP.md. Automatic checks
+        // are disabled via SUEnableAutomaticChecks in Info.plist; the Sparkle
+        // framework itself stays linked (SPUUpdaterDelegate conformance is
+        // still needed elsewhere) but nothing in the UI can trigger a check.
 
         // ── Appearance ───────────────────────────────────────
         stack.addArrangedSubview(sectionHeader(L("Appearance")))
@@ -1961,7 +1961,7 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSWindowD
         stack.setCustomSpacing(10, after: stack.arrangedSubviews.last!)
 
         gdriveFolderField = NSTextField()
-        gdriveFolderField.placeholderString = "macshot"
+        gdriveFolderField.placeholderString = BuildVariant.displayName
         gdriveFolderField.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
         gdriveFolderField.stringValue = UserDefaults.standard.string(forKey: "gdriveFolderName") ?? ""
         gdriveFolderField.target = self
@@ -2218,7 +2218,7 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSWindowD
                 var lines: [String] = []
                 let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
                 let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
-                lines.append("macshot \(version) (\(build))")
+                lines.append("\(BuildVariant.displayName) \(version) (\(build))")
                 lines.append("macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
                 lines.append("")
                 lines.append("=== NSScreen Info ===")
@@ -2682,11 +2682,6 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSWindowD
         updateFilenamePreview()
         recordingFilenameTemplateField.stringValue = UserDefaults.standard.string(forKey: FilenameFormatter.recordingUserDefaultsKey) ?? FilenameFormatter.defaultRecordingTemplate
         updateRecordingFilenamePreview()
-
-        let autoUpdate = UserDefaults.standard.object(forKey: "SUEnableAutomaticChecks") as? Bool ?? true
-        autoUpdateCheckbox.state = autoUpdate ? .on : .off
-
-        betaUpdateCheckbox.state = UserDefaults.standard.bool(forKey: "betaUpdatesEnabled") ? .on : .off
 
         accentColorWell.color = ToolbarLayout.accentColor
         iconColorWell.color = ToolbarLayout.iconColor
@@ -3244,20 +3239,20 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSWindowD
         if let existing = urlSchemeInfoPopover, existing.isShown { return }
 
         let commands: [(String, String)] = [
-            ("macshot://capture",             L("Start area capture")),
-            ("macshot://capture-fullscreen",  L("Capture the full screen")),
-            ("macshot://capture-last",        L("Re-capture the last selected area")),
-            ("macshot://quick-capture",       L("Quick capture (uses your Enter action)")),
-            ("macshot://ocr",                 L("Capture area and read text/QR codes")),
-            ("macshot://ocr-translate?target=zh-CN", L("Capture, translate, and overlay the text on the image")),
-            ("macshot://record",              L("Start area recording")),
-            ("macshot://record-fullscreen",   L("Start full-screen recording")),
-            ("macshot://stop-recording",      L("Stop the current recording")),
-            ("macshot://scroll-capture",      L("Start scroll capture")),
-            ("macshot://history",             L("Open the recent captures overlay")),
-            ("macshot://settings",            L("Open this settings window")),
-            ("macshot://open?file=/path.png", L("Open an image file in the editor")),
-            ("macshot://edit?id=<id>",        L("Open a history entry in the editor (keeps annotations editable)")),
+            ("markclip://capture",             L("Start area capture")),
+            ("markclip://capture-fullscreen",  L("Capture the full screen")),
+            ("markclip://capture-last",        L("Re-capture the last selected area")),
+            ("markclip://quick-capture",       L("Quick capture (uses your Enter action)")),
+            ("markclip://ocr",                 L("Capture area and read text/QR codes")),
+            ("markclip://ocr-translate?target=zh-CN", L("Capture, translate, and overlay the text on the image")),
+            ("markclip://record",              L("Start area recording")),
+            ("markclip://record-fullscreen",   L("Start full-screen recording")),
+            ("markclip://stop-recording",      L("Stop the current recording")),
+            ("markclip://scroll-capture",      L("Start scroll capture")),
+            ("markclip://history",             L("Open the recent captures overlay")),
+            ("markclip://settings",            L("Open this settings window")),
+            ("markclip://open?file=/path.png", L("Open an image file in the editor")),
+            ("markclip://edit?id=<id>",        L("Open a history entry in the editor (keeps annotations editable)")),
         ]
 
         let title = NSTextField(labelWithString: L("Supported URL Scheme Commands"))
@@ -3370,14 +3365,6 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSWindowD
         let custom = menuBarIconModePopup.indexOfSelectedItem == 1
         menuBarIconSymbolField.isEnabled = custom
         menuBarIconPresetPopup.isEnabled = custom
-    }
-
-    @objc private func autoUpdateChanged(_ sender: NSButton) {
-        UserDefaults.standard.set(sender.state == .on, forKey: "SUEnableAutomaticChecks")
-    }
-
-    @objc private func betaUpdateChanged(_ sender: NSButton) {
-        UserDefaults.standard.set(sender.state == .on, forKey: "betaUpdatesEnabled")
     }
 
     @objc private func translationProviderChanged(_ sender: NSPopUpButton) {
